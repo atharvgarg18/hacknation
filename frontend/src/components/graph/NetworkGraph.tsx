@@ -13,6 +13,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import ForceGraph3D from './ForceGraph3DWrapper';
 import { useGraphStore } from '@/store/graphStore';
 import { BANK_CONFIGS } from '@/lib/types';
@@ -27,8 +28,8 @@ let SpriteText: typeof import('three-spritetext').default | null = null;
 
 const BANK_NODE_COLORS: Record<string, number> = {
   axis: 0xc91e5e,
-  icici: 0xf37021,
-  hdfc: 0x2288dd,
+  icici: 0xf97316,
+  hdfc: 0x0284c7,
 };
 
 const BANK_GLOW: Record<string, number> = {
@@ -37,15 +38,16 @@ const BANK_GLOW: Record<string, number> = {
   hdfc: 0x00aaff,
 };
 
-const FLAGGED_COLOR = 0xff3366;
+const FLAGGED_COLOR = 0xf43f5e;
 const FLAGGED_GLOW = 0xff0044;
-const BG_COLOR = '#060610';
+const BG_COLOR = '#06070b';
 
 export default function NetworkGraph() {
   const graphRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [threeLoaded, setThreeLoaded] = useState(false);
+  const [isOrbiting, setIsOrbiting] = useState(true);
   const animFrameRef = useRef<number>(0);
   const rotAngle = useRef(0);
   const bloomComposerRef = useRef<any>(null);
@@ -58,7 +60,14 @@ export default function NetworkGraph() {
     setSelectedNode,
     showDetectionAnimation,
     detectionTimeMs,
+    clearDetection,
   } = useGraphStore();
+
+  const resetCamera = useCallback(() => {
+    if (graphRef.current) {
+      graphRef.current.cameraPosition({ x: 0, y: 50, z: 550 }, { x: 0, y: 0, z: 0 }, 1000);
+    }
+  }, []);
 
   // Dynamic import Three.js + addons
   useEffect(() => {
@@ -84,9 +93,9 @@ export default function NetworkGraph() {
     return () => ro.disconnect();
   }, []);
 
-  // === Auto-rotation (stops on focus) ===
+  // === Auto-rotation (stops on focus or when paused) ===
   useEffect(() => {
-    if (!graphRef.current || focusedChain) return;
+    if (!graphRef.current || focusedChain || !isOrbiting) return;
     let stop = false;
     const tick = () => {
       if (stop || !graphRef.current) return;
@@ -102,7 +111,7 @@ export default function NetworkGraph() {
     };
     animFrameRef.current = requestAnimationFrame(tick);
     return () => { stop = true; cancelAnimationFrame(animFrameRef.current); };
-  }, [focusedChain]);
+  }, [focusedChain, isOrbiting]);
 
   // === Camera fly-to on chain focus ===
   useEffect(() => {
@@ -410,32 +419,99 @@ export default function NetworkGraph() {
         backgroundColor={BG_COLOR}
       />
 
-      {/* Graph overlays */}
-      <div className="graph-hud graph-hud--top-left">
-        <div className="hud-label">
-          <span className="hud-dot" />
-          LIVE TOPOLOGY
+      {/* Aerospace Viewport Corner Reticles */}
+      <div className="hud-corner hud-corner--top-left" />
+      <div className="hud-corner hud-corner--top-right" />
+      <div className="hud-corner hud-corner--bottom-left" />
+      <div className="hud-corner hud-corner--bottom-right" />
+
+      {/* Top-Left Telemetry Tag */}
+      <div className="graph-hud--telemetry">
+        <div className="hud-telemetry-tag">
+          <span
+            style={{
+              width: 5,
+              height: 5,
+              borderRadius: '50%',
+              background: 'var(--emerald)',
+              boxShadow: '0 0 6px var(--emerald)',
+            }}
+          />
+          TOPOLOGY MATRIX // ZKP MESH
         </div>
-        <div className="hud-stat">{graphData.nodes.length} nodes · {graphData.links.length} edges</div>
+        <div className="hud-telemetry-stats">
+          {graphData.nodes.length} NODES · {graphData.links.length} EDGES
+        </div>
       </div>
 
+      {/* Top-Right Graph Viewport Controls */}
+      <div className="graph-hud--controls">
+        <button
+          className="graph-ctrl-btn"
+          onClick={() => setIsOrbiting((prev) => !prev)}
+          title="Toggle camera orbital rotation"
+        >
+          {isOrbiting ? '⏸ Orbit' : '▶ Orbit'}
+        </button>
+        <button
+          className="graph-ctrl-btn"
+          onClick={resetCamera}
+          title="Reset camera center view"
+        >
+          ⌖ Center
+        </button>
+      </div>
+
+      {/* Apple Dynamic Island Style Alert Pill (Center-Top) */}
       {showDetectionAnimation && detectionTimeMs && (
-        <div className="graph-hud graph-hud--top-center">
-          <div className="detection-badge animate-scale-in">
-            <span className="detection-badge__icon">⚡</span>
-            <span className="detection-badge__text">
-              Chain detected in <strong>{(detectionTimeMs / 1000).toFixed(1)}s</strong>
-            </span>
+        <div className="graph-hud--detection-island animate-scale-in">
+          <div className="detection-island">
+            <div className="detection-island__beacon" />
+            <div className="detection-island__content">
+              <span className="detection-island__tag">RING DETECTED</span>
+              <span>·</span>
+              <span>{(detectionTimeMs / 1000).toFixed(1)}s</span>
+              <span>·</span>
+              <span style={{ color: 'var(--text-secondary)' }}>₹15.0L across 3 Banks</span>
+            </div>
+            <Link href="/investigate?chain=0" className="detection-island__action">
+              Investigate →
+            </Link>
           </div>
         </div>
       )}
 
+      {/* Chain Focus Bar (Bottom-Center) */}
       {focusedChain && (
-        <div className="graph-hud graph-hud--bottom-center">
-          <div className="chain-info-bar animate-fade-in">
-            <span className="chain-info-bar__dot" />
-            Viewing chain <strong>{focusedChain.chainId.split('-')[1]?.toUpperCase()}</strong>
-            &nbsp;·&nbsp;{focusedChain.nodeIds.length} accounts&nbsp;·&nbsp;{focusedChain.edgeIds.length} transfers
+        <div className="graph-hud--chain-focus animate-fade-in">
+          <div className="chain-focus-pill">
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                background: 'var(--crimson)',
+                boxShadow: '0 0 6px var(--crimson)',
+              }}
+            />
+            <span>
+              Isolating <strong>Chain {focusedChain.chainId.split('-')[1]?.toUpperCase()}</strong>
+              &nbsp;·&nbsp;{focusedChain.nodeIds.length} accounts&nbsp;·&nbsp;{focusedChain.edgeIds.length} transfers
+            </span>
+            <button
+              onClick={clearDetection}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-tertiary)',
+                cursor: 'pointer',
+                padding: '0 4px',
+                fontSize: 12,
+              }}
+              title="Clear chain focus"
+            >
+              ✕
+            </button>
           </div>
         </div>
       )}

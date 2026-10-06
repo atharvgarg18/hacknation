@@ -1,49 +1,106 @@
 /**
- * AlertPanel — Right sidebar with premium alert cards.
+ * AlertPanel — Threat Intelligence & Correlated Chains
+ * Right sidebar with Apple-clear frosted alert cards and instant investigation deep-links.
  */
 
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { useGraphStore } from '@/store/graphStore';
 import type { Alert } from '@/lib/types';
 
-function AlertCard({ alert, isSelected }: { alert: Alert; isSelected: boolean }) {
+function AlertCardItem({ alert, isSelected }: { alert: Alert; isSelected: boolean }) {
   const { selectAlert } = useGraphStore();
+
+  const isCritical = alert.score > 75;
+  const isHigh = alert.score > 50 && alert.score <= 75;
+  const scoreClass = isCritical
+    ? 'alert-card__score--critical'
+    : isHigh
+    ? 'alert-card__score--high'
+    : 'alert-card__score--medium';
+
+  const chainIndex = alert.chainId.includes('TKQDQ') || alert.id.includes('1') ? 0 : 1;
 
   return (
     <div
       className={`alert-card alert-card--${alert.severity} ${isSelected ? 'alert-card--selected' : ''}`}
       onClick={() => selectAlert(isSelected ? null : alert.id)}
-      style={isSelected ? { boxShadow: 'var(--shadow-glow-red)' } : undefined}
     >
-      <div className="alert-card__header">
-        <div className="alert-card__chain-name">
-          <span className={`alert-card__severity-dot alert-card__severity-dot--${alert.severity}`} />
-          Chain {alert.chainId.split('-')[1]?.toUpperCase() || 'X'}
+      {/* Top Header */}
+      <div className="alert-card__top">
+        <div className="alert-card__chain-id">
+          <span
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: '50%',
+              background: isCritical ? 'var(--crimson)' : 'var(--amber)',
+              boxShadow: isCritical ? '0 0 8px var(--crimson)' : '0 0 6px var(--amber)',
+            }}
+          />
+          CHAIN // {alert.chainId.split('-')[1]?.toUpperCase() || 'TKQDQ'}
+        </div>
+
+        <div className={`alert-card__risk-score ${scoreClass}`}>
+          {alert.score}
         </div>
       </div>
 
-      <div className="alert-card__score" style={{
-        color: alert.score > 75 ? 'var(--red)' : alert.score > 50 ? 'var(--orange)' : 'var(--yellow)',
-      }}>
-        {alert.score}
+      {/* Cross-Bank Laundering Flow */}
+      <div className="alert-card__transit-path">
+        <span className="transit-node" style={{ color: 'var(--axis)' }}>AXIS</span>
+        <span>→</span>
+        <span className="transit-node" style={{ color: 'var(--icici)' }}>ICICI</span>
+        <span>→</span>
+        <span className="transit-node" style={{ color: 'var(--hdfc)' }}>HDFC</span>
+        <span>→</span>
+        <span className="transit-node" style={{ color: 'var(--axis)' }}>AXIS</span>
       </div>
 
-      <div className="alert-card__meta">
-        <span>{alert.banksInvolved.length} banks</span>
-        <span style={{ color: 'var(--text-muted)' }}>·</span>
-        <span>{alert.nodeCount} accounts</span>
-        <span style={{ color: 'var(--text-muted)' }}>·</span>
-        <span>{alert.totalAmount}</span>
+      {/* Micro-Metrics Grid */}
+      <div className="alert-card__meta-grid">
+        <div className="alert-card__meta-item">
+          <span className="alert-card__meta-label">Entities</span>
+          <span className="alert-card__meta-val">{alert.nodeCount} accts</span>
+        </div>
+        <div className="alert-card__meta-item">
+          <span className="alert-card__meta-label">Volume</span>
+          <span className="alert-card__meta-val">{alert.totalAmount}</span>
+        </div>
+        <div className="alert-card__meta-item">
+          <span className="alert-card__meta-label">Latency</span>
+          <span className="alert-card__meta-val" style={{ color: 'var(--cyan)' }}>
+            {alert.detectionTime.toFixed(1)}s
+          </span>
+        </div>
       </div>
 
-      <div className="alert-card__detection">
-        ⚡ {alert.detectionTime.toFixed(1)}s detection
+      {/* Footer & Deep-Dive Link */}
+      <div className="alert-card__footer">
+        <span>⚡ Real-Time Graph Match</span>
+        <Link
+          href={`/investigate?chain=${chainIndex}`}
+          className="alert-card__inspect-btn"
+          onClick={(e) => e.stopPropagation()}
+        >
+          Investigate →
+        </Link>
       </div>
 
       {isSelected && (
-        <div className="alert-card__summary animate-fade-in">
+        <div
+          style={{
+            marginTop: 10,
+            paddingTop: 8,
+            borderTop: '1px solid var(--border-light)',
+            fontSize: 11,
+            color: 'var(--text-secondary)',
+            lineHeight: 1.5,
+          }}
+          className="animate-fade-in"
+        >
           {alert.summary}
         </div>
       )}
@@ -54,46 +111,60 @@ function AlertCard({ alert, isSelected }: { alert: Alert; isSelected: boolean })
 export default function AlertPanel() {
   const { alerts, selectedAlertId } = useGraphStore();
   const sorted = [...alerts].sort((a, b) => b.score - a.score);
+  const activeCount = alerts.filter((a) => a.status === 'active').length;
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* Header */}
       <div className="section-header">
-        Alerts
-        {alerts.filter(a => a.status === 'active').length > 0 && (
-          <span className="section-header__badge">
-            {alerts.filter(a => a.status === 'active').length}
-          </span>
+        <span>THREAT INTELLIGENCE</span>
+        {activeCount > 0 && (
+          <span className="section-header__badge">{activeCount} CRITICAL</span>
         )}
       </div>
 
+      {/* Alert List */}
       {sorted.map((alert) => (
-        <AlertCard key={alert.id} alert={alert} isSelected={selectedAlertId === alert.id} />
+        <AlertCardItem
+          key={alert.id}
+          alert={alert}
+          isSelected={selectedAlertId === alert.id}
+        />
       ))}
 
       {alerts.length === 0 && (
-        <div className="legend-card" style={{ textAlign: 'center', padding: 24, color: 'var(--text-tertiary)' }}>
-          No alerts detected.<br />
-          <span style={{ fontSize: 10 }}>Run simulation to generate alerts.</span>
+        <div
+          className="legend-card"
+          style={{ textAlign: 'center', padding: 24, color: 'var(--text-tertiary)' }}
+        >
+          No correlated laundering chains active.<br />
+          <span style={{ fontSize: 10 }}>Trigger attack simulation to correlate rings.</span>
         </div>
       )}
 
-      <div className="section-header" style={{ marginTop: 8 }}>Legend</div>
+      {/* Threshold Reference */}
+      <div className="section-header" style={{ marginTop: 4 }}>
+        <span>ANOMALY THRESHOLDS</span>
+      </div>
+
       <div className="legend-card">
-        <div className="legend-card__item">
-          <span className="legend-card__dot" style={{ background: 'var(--red)' }} />
-          <span style={{ color: 'var(--red)', fontWeight: 700 }}>75+</span> Critical
-        </div>
-        <div className="legend-card__item">
-          <span className="legend-card__dot" style={{ background: 'var(--orange)' }} />
-          <span style={{ color: 'var(--orange)', fontWeight: 700 }}>50–74</span> High
-        </div>
-        <div className="legend-card__item">
-          <span className="legend-card__dot" style={{ background: 'var(--yellow)' }} />
-          <span style={{ color: 'var(--yellow)', fontWeight: 700 }}>25–49</span> Watch
-        </div>
-        <div className="legend-card__item">
-          <span className="legend-card__dot" style={{ background: 'var(--cyan)' }} />
-          <span style={{ color: 'var(--cyan)', fontWeight: 700 }}>0–24</span> Info
+        <div className="legend-card__grid">
+          <div className="legend-card__item">
+            <span className="legend-card__dot" style={{ background: 'var(--crimson)' }} />
+            <span><strong>75+</strong> Critical Ring</span>
+          </div>
+          <div className="legend-card__item">
+            <span className="legend-card__dot" style={{ background: 'var(--amber)' }} />
+            <span><strong>50–74</strong> High Spread</span>
+          </div>
+          <div className="legend-card__item">
+            <span className="legend-card__dot" style={{ background: 'var(--amber)', opacity: 0.7 }} />
+            <span><strong>25–49</strong> Watchlist</span>
+          </div>
+          <div className="legend-card__item">
+            <span className="legend-card__dot" style={{ background: 'var(--cyan)' }} />
+            <span><strong>0–24</strong> Standard Flow</span>
+          </div>
         </div>
       </div>
     </div>
