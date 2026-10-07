@@ -114,10 +114,20 @@ export default function NetworkGraph() {
   }, [focusedChain, isOrbiting]);
 
   // === Camera fly-to on chain focus ===
+  const lastFocusedChainIdRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (!graphRef.current || !focusedChain) return;
-    
-    // Small delay to let visibility filter apply first
+    if (!graphRef.current || !focusedChain) {
+      lastFocusedChainIdRef.current = null;
+      return;
+    }
+
+    // Only glide camera ONCE when a new chain is focused, not on every progressive hop!
+    if (lastFocusedChainIdRef.current === focusedChain.chainId) {
+      return;
+    }
+    lastFocusedChainIdRef.current = focusedChain.chainId;
+
     const timer = setTimeout(() => {
       if (!graphRef.current) return;
       const cNodes = graphData.nodes.filter(n => focusedChain.nodeIds.includes(n.id));
@@ -133,17 +143,16 @@ export default function NetworkGraph() {
       });
       if (cnt > 0) {
         cx /= cnt; cy /= cnt; cz /= cnt;
-        // Zoom in tight — 100 unit offset
         graphRef.current.cameraPosition(
-          { x: cx + 100, y: cy + 50, z: cz + 100 },
+          { x: cx + 110, y: cy + 50, z: cz + 120 },
           { x: cx, y: cy, z: cz },
-          2000
+          1200
         );
       }
-    }, 200);
-    
+    }, 80);
+
     return () => clearTimeout(timer);
-  }, [focusedChain, graphData.nodes]);
+  }, [focusedChain?.chainId, graphData.nodes]);
 
   // === Scene setup: lighting, fog, renderer ===
   useEffect(() => {
@@ -192,6 +201,9 @@ export default function NetworkGraph() {
     if (!THREE || !SpriteText) return new (THREE as any).Object3D();
     const n = node as GraphNode;
     const flagged = n.isFlagged;
+    const inChain = focusedChain?.nodeIds.includes(n.id);
+    const dimmed = focusedChain && !inChain;
+
     const bankCol = BANK_NODE_COLORS[n.bank] || 0x2a2a3a;
     const bankGl = BANK_GLOW[n.bank] || 0xffffff;
 
@@ -199,51 +211,55 @@ export default function NetworkGraph() {
     const sz = flagged ? 5 : 2.5;
 
     // === Core sphere ===
-    const geo = new THREE.SphereGeometry(sz, 24, 24);
+    const geo = new THREE.SphereGeometry(sz, 16, 16);
     const mat = new THREE.MeshStandardMaterial({
       color: flagged ? FLAGGED_COLOR : bankCol,
       emissive: new THREE.Color(flagged ? FLAGGED_COLOR : bankCol),
-      emissiveIntensity: flagged ? 3.0 : 0.5,
+      emissiveIntensity: flagged ? (inChain ? 3.5 : 2.0) : (dimmed ? 0.05 : 0.5),
       roughness: 0.25,
       metalness: 0.8,
       transparent: true,
-      opacity: flagged ? 1.0 : 0.85,
+      opacity: dimmed ? 0.12 : (flagged ? 1.0 : 0.85),
       toneMapped: false,
     });
     group.add(new THREE.Mesh(geo, mat));
 
-    // === Outer glow shell for ALL nodes ===
-    const glowGeo = new THREE.SphereGeometry(sz * (flagged ? 2.0 : 1.5), 16, 16);
-    const glowMat = new THREE.MeshBasicMaterial({
-      color: new THREE.Color(flagged ? FLAGGED_GLOW : bankGl),
-      transparent: true,
-      opacity: flagged ? 0.18 : 0.06,
-      toneMapped: false,
-      depthWrite: false,
-    });
-    group.add(new THREE.Mesh(glowGeo, glowMat));
+    // === Outer glow shell for visible nodes ===
+    if (!dimmed) {
+      const glowGeo = new THREE.SphereGeometry(sz * (flagged ? 2.0 : 1.5), 12, 12);
+      const glowMat = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(flagged ? FLAGGED_GLOW : bankGl),
+        transparent: true,
+        opacity: flagged ? 0.22 : 0.06,
+        toneMapped: false,
+        depthWrite: false,
+      });
+      group.add(new THREE.Mesh(glowGeo, glowMat));
+    }
 
-    // === Bank label ===
-    const lbl = new SpriteText!(
-      BANK_CONFIGS[n.bank]?.shortName || '?',
-      sz * 0.65,
-      '#ffffff'
-    );
-    lbl.fontWeight = '800';
-    lbl.fontSize = 90;
-    lbl.material.depthTest = false;
-    lbl.material.transparent = true;
-    lbl.material.opacity = flagged ? 1.0 : 0.8;
-    lbl.renderOrder = 10;
-    group.add(lbl);
+    // === Bank label (hidden on dimmed background nodes during focus) ===
+    if (!dimmed || flagged) {
+      const lbl = new SpriteText!(
+        BANK_CONFIGS[n.bank]?.shortName || '?',
+        sz * 0.65,
+        '#ffffff'
+      );
+      lbl.fontWeight = '800';
+      lbl.fontSize = 80;
+      lbl.material.depthTest = false;
+      lbl.material.transparent = true;
+      lbl.material.opacity = dimmed ? 0.15 : (flagged ? 1.0 : 0.85);
+      lbl.renderOrder = 10;
+      group.add(lbl);
+    }
 
-    // === Pulsing ring for flagged ===
-    if (flagged) {
-      const ringGeo = new THREE.TorusGeometry(sz * 1.8, 0.3, 8, 32);
+    // === Pulsing ring for flagged in-chain nodes ===
+    if (flagged && inChain) {
+      const ringGeo = new THREE.TorusGeometry(sz * 1.8, 0.35, 6, 24);
       const ringMat = new THREE.MeshBasicMaterial({
         color: 0xff3366,
         transparent: true,
-        opacity: 0.5,
+        opacity: 0.6,
         toneMapped: false,
       });
       const ring = new THREE.Mesh(ringGeo, ringMat);
@@ -252,7 +268,7 @@ export default function NetworkGraph() {
     }
 
     return group;
-  }, []);
+  }, [focusedChain]);
 
   // ============================================
   // EDGE STYLING
@@ -310,10 +326,9 @@ export default function NetworkGraph() {
   // ============================================
 
   const nodeVis = useCallback((node: any) => {
-    if (!focusedChain) return true;
-    const n = node as GraphNode;
-    return focusedChain.nodeIds.includes(n.id);
-  }, [focusedChain]);
+    // Keep all nodes in 3D graph (background nodes are dimmed gracefully) to prevent mesh thrashing
+    return true;
+  }, []);
 
   const linkVis = useCallback((link: any) => {
     if (!focusedChain) return true;
@@ -411,8 +426,8 @@ export default function NetworkGraph() {
         linkCurvature={0.15}
         d3AlphaDecay={0.015}
         d3VelocityDecay={0.25}
-        warmupTicks={100}
-        cooldownTicks={120}
+        warmupTicks={10}
+        cooldownTicks={40}
         onNodeHover={onHover}
         onNodeClick={onClick}
         onBackgroundClick={() => setSelectedNode(null)}
