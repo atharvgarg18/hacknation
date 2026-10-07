@@ -209,10 +209,46 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     set({ isSimulating: false, simulationInterval: null });
   },
 
-  triggerAttack: () => {
-    // This will be implemented with the backend.
-    // For now, we can simulate by highlighting the existing chain.
+  triggerAttack: async () => {
     const state = get();
+    try {
+      const res = await fetch('http://localhost:8001/api/attack/simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pattern: state.simulationConfig.attackPattern,
+          hops: state.simulationConfig.attackHops,
+          amount: state.simulationConfig.attackAmount,
+          banks: state.simulationConfig.attackBanks,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.alert) {
+          // Merge newly attacked nodes and links
+          const existingNodeIds = new Set(state.graphData.nodes.map((n) => n.id));
+          const newNodes = data.graphData.nodes.filter(
+            (n: GraphNode) => !existingNodeIds.has(n.id)
+          );
+          const allNodes = [...state.graphData.nodes, ...newNodes];
+          const allLinks = [...state.graphData.links, ...data.graphData.links];
+
+          set({
+            graphData: { nodes: allNodes, links: allLinks },
+            alerts: [data.alert, ...state.alerts],
+          });
+
+          // Focus on the new chain and trigger detection animation
+          state.selectAlert(data.alert.id);
+          state.triggerDetection(data.alert.chainId, data.detectionTimeMs || 42);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Backend attack simulation unavailable, falling back:', err);
+    }
+
+    // Fallback if backend is not reachable
     const criticalAlert = state.alerts.find((a) => a.severity === 'critical');
     if (criticalAlert) {
       state.selectAlert(criticalAlert.id);

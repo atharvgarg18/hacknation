@@ -1,0 +1,146 @@
+{
+  "n_transactions": 8,
+  "n_flagged": 8,
+  "n_blocked": 8,
+  "detection_rate": 1.0,
+  "block_rate": 1.0,
+  "n_chains": 2,
+  "chains": [
+    {
+      "chain_id": "chain_0",
+      "edge_ids": [
+        "ring_fanout_chain_999_9aaa53_e0",
+        "ring_fanout_chain_999_9aaa53_e2",
+        "ring_fanout_chain_999_9aaa53_e4",
+        "ring_fanout_chain_999_9aaa53_e7"
+      ],
+      "features": {
+        "n_alerts": 4,
+        "n_banks": 3,
+        "depth": 3,
+        "mean_edge_score": 1.0,
+        "min_edge_score": 1.0,
+        "amount_conservation": 0.7630754671198375,
+        "time_span_s": 3739.14808511734,
+        "median_hop_delay_s": 1167.6083600521088,
+        "has_cycle": 1,
+        "branching_factor": 0.75
+      },
+      "score": 0.8,
+      "detected": true,
+      "n_alerts": 4,
+      "n_banks": 3
+    },
+    {
+      "chain_id": "chain_1",
+      "edge_ids": [
+        "ring_fanout_chain_999_9aaa53_e1",
+        "ring_fanout_chain_999_9aaa53_e3",
+        "ring_fanout_chain_999_9aaa53_e5",
+        "ring_fanout_chain_999_9aaa53_e6"
+      ],
+      "features": {
+        "n_alerts": 4,
+        "n_banks": 3,
+        "depth": 3,
+        "mean_edge_score": 1.0,
+        "min_edge_score": 1.0,
+        "amount_conservation": 0.7665873685541622,
+        "time_span_s": 2667.0601468086243,
+        "median_hop_delay_s": 1070.0386407375336,
+        "has_cycle": 1,
+        "branching_factor": 0.75
+      },
+      "score": 0.8,
+      "detected": true,
+      "n_alerts": 4,
+      "n_banks": 3
+    }
+  ],
+  "transactions": [
+    {
+      "tx_id": "ring_fanout_chain_999_9aaa53_e0",
+      "src_acct": "hdfc_r9aaa5300999_S",
+      "dst_acct": "icici_r9aaa5300999_M0_0",
+      "amount": 1951093.01,
+      "score": 1.0,
+      "flagged": true,
+      "blocked": true,
+      "band": "block"
+    },
+    {
+      "tx_id": "ring_fanout_chain_999_9aaa53_e1",
+      "src_acct": "hdfc_r9aaa5300999_S",
+      "dst_acct": "hdfc_r9aaa5300999_M1_0",
+      "amount": 534106.87,
+      "score": 1.0,
+      "flagged": true,
+      "blocked": true,
+      "band": "block"
+    },
+    {
+      "tx_id": "ring_fanout_chain_999_9aaa53_e2",
+      "src_acct": "icici_r9aaa5300999_M0_0",
+      "dst_acct": "icici_r9aaa5300999_M0_1",
+      "amount": 1786161.51,
+      "score": 1.0,
+      "flagged": true,
+      "blocked": true,
+      "band": "block"
+    },
+    {
+      "tx_id": "ring_fanout_chain_999_9aaa53_e3",
+      "src_acct": "hdfc_r9aaa5300999_M1_0",
+      "dst_acct": "axis_r9aaa5300999_M1_1",
+      "amount": 484384.34,
+      "score": 1.0,
+      "flagged": true,
+      "blocked": true,
+      "band": "block"
+    },
+    {
+      "tx_id": "ring_fanout_chain_999_9aaa53_e4",
+      "src_acct": "icici_r9aaa5300999_M0_1",
+      "dst_acct": "hdfc_r9aaa5300999_M0_2",
+      "amount": 1621995.82,
+      "score": 1.0,
+      "flagged": true,
+      "blocked": true,
+      "band": "block"
+    },
+    {
+      "tx_id": "ring_fanout_chain_999_9aaa53_e5",
+      "src_acct": "axis_r9aaa5300999_M1_1",
+      "dst_acct": "hdfc_r9aaa5300999_M1_2",
+      "amount": 445348.43,
+      "score": 1.0,
+      "flagged": true,
+      "blocked": true,
+      "band": "block"
+    },
+    {
+      "tx_id": "ring_fanout_chain_999_9aaa53_e6",
+      "src_acct": "hdfc_r9aaa5300999_M1_2",
+      "dst_acct": "ext_r9aaa5300999_T",
+      "amount": 409439.58,
+      "score": 1.0,
+      "flagged": true,
+      "blocked": true,
+      "band": "block"
+    },
+    {
+      "tx_id": "ring_fanout_chain_999_9aaa53_e7",
+      "src_acct": "hdfc_r9aaa5300999_M0_2",
+      "dst_acct": "ext_r9aaa5300999_T",
+      "amount": 1488831.21,
+      "score": 1.0,
+      "flagged": true,
+      "blocked": true,
+      "band": "block"
+    }
+  ],
+  "thresholds": {
+    "t_low": 0.7878787878787878,
+    "t_high": 0.7878797878787879
+  }
+}

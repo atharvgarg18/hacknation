@@ -450,6 +450,15 @@ function AlertInvestigationContent() {
 
               {/* Action Buttons */}
               <div style={{ display: 'flex', gap: 8 }}>
+                <Link
+                  href="/security"
+                  className="btn btn--ghost"
+                  style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11 }}
+                >
+                  <span>📜</span>
+                  <span>Verify Merkle Proof</span>
+                </Link>
+
                 <button
                   className="btn btn--simulate"
                   onClick={() => setIsFrozen(true)}

@@ -1,0 +1,20 @@
+# Bytecode and cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Environments and secrets
+.env
+.env.local
+*.log
+
+# Node & Next.js
+node_modules/
+.next/
+dist/
+build/
+
+# Dataset cache / pickles
+*.pkl

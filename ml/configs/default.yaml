@@ -1,0 +1,97 @@
+seed: 42
+
+banks:
+  - id: axis
+    name: "Axis Bank"
+    channels: ["UPI", "IMPS", "NEFT", "RTGS"]
+  - id: icici
+    name: "ICICI Bank"
+    channels: ["UPI", "IMPS", "NEFT", "RTGS"]
+  - id: hdfc
+    name: "HDFC Bank"
+    channels: ["UPI", "IMPS", "NEFT", "RTGS"]
+
+data:
+  raw_dir: "data/raw"
+  banks_dir: "data/banks"
+  rings_dir: "data/rings"
+  heldout_dir: "data/heldout"
+  currency: "INR"
+  normal_tx_count: 50000
+  start_date: "2024-01-01"
+  end_date: "2024-03-31"
+  temporal_splits:
+    train_ratio: 0.60
+    val_ratio: 0.20
+    test_ratio: 0.20
+  label_delay_days:
+    enabled: true
+    median_days: 14.0
+    sigma: 0.5
+  stress_cases:
+    payroll: true
+    merchant: true
+    rent: true
+    remittance: true
+    sweep: true
+
+rings:
+  train_families: ["fanout_chain", "cycle", "scatter_gather"]
+  heldout_family: "layered"
+  train_rings_count: 80
+  heldout_rings_count: 30
+  heldout_seed_base: 10000
+
+models:
+  risk_scorer:
+    num_leaves: 63
+    learning_rate: 0.05
+    n_estimators: 1000
+    early_stopping_rounds: 50
+    min_data_in_leaf: 50
+    feature_fraction: 0.8
+    bagging_fraction: 0.8
+    onnx_export_path: "artifacts/risk_scorer.onnx"
+  
+  graph_sage:
+    in_node_dim: 16
+    in_edge_dim: 8
+    hidden_dim: 64
+    layers: 2
+    lr: 0.005
+    epochs: 15
+    batch_size: 1024
+    pos_weight: 15.0
+
+  chain_scorer:
+    max_hop_delay_hours: 72.0
+    amount_ratio_min: 0.50
+    amount_ratio_max: 1.05
+    high_risk_edge_threshold: 0.60
+    min_alerts_in_chain: 2
+
+federated:
+  num_rounds: 10
+  local_epochs: 2
+  proximal_mu: 0.05
+  dp:
+    enabled: true
+    clip_c: 1.0
+    sigma: 0.3
+  robust_agg:
+    method: "trimmed_mean" # trimmed_mean, coord_median, krum
+    trim_k: 1
+  secagg_sim: true
+
+calibration:
+  method: "isotonic"
+  target_fpr_high: 0.001
+  hold_budget_rate: 0.01
+
+attacker:
+  num_trials: 30
+  eval_seeds_per_config: 5
+  cost_weights:
+    hop_cost: 0.05
+    delay_cost: 0.02
+    mule_cost: 0.03

@@ -269,3 +269,99 @@ export interface HoldRequest {
   approvedBy?: string;
   approvedAt?: string;
 }
+
+// ============================================
+// Cryptographic Security & Audit Types
+// ============================================
+
+export interface MerkleProofStep {
+  step: number;
+  position: 'left' | 'right';
+  sibling: string;
+  resulting_hash: string;
+}
+
+export interface MerkleVerificationResult {
+  valid: boolean;
+  tampered?: boolean;
+  event_id: string;
+  computed_leaf: string;
+  expected_root: string;
+  on_chain_tx_hash?: string;
+  trace: MerkleProofStep[];
+  message: string;
+}
+
+export interface AuditBlockSummary {
+  block_height: number;
+  timestamp: number;
+  timestamp_iso: string;
+  prev_block_hash: string;
+  merkle_root: string;
+  block_hash: string;
+  event_count: number;
+  on_chain_tx_hash: string;
+  chain_name: string;
+}
+
+export interface AuditLedgerSummary {
+  total_blocks: number;
+  total_events: number;
+  pending_events_count: number;
+  latest_merkle_root: string | null;
+  latest_tx_hash: string | null;
+  blocks: AuditBlockSummary[];
+}
+
+export interface PSIRunResult {
+  status: string;
+  protocol: string;
+  elapsed_ms: number;
+  banks: Record<string, { input_size: number; blinded_hash: string }>;
+  pairwise_intersections: {
+    axis_icici_count: number;
+    axis_hdfc_count: number;
+    icici_hdfc_count: number;
+  };
+  cross_bank_mules_count: number;
+  cross_bank_mules: string[];
+  triple_shared_mules: string[];
+  zkp_guarantee: string;
+}
+
+export interface PrivacyTelemetry {
+  status: string;
+  dp_budget: {
+    epsilon_max: number;
+    epsilon_consumed: number;
+    epsilon_remaining: number;
+    budget_consumed_percentage: number;
+    delta: number;
+    sigma_noise_scale: number;
+    clip_bound_C: number;
+    federated_rounds_executed: number;
+    participating_nodes: string[];
+    accounting_mechanism: string;
+  };
+  salt_rotation: {
+    epoch_id: string;
+    rotation_interval_hours: number;
+    time_remaining_seconds: number;
+    salt_sha256_fingerprint: string;
+    historical_epochs_count: number;
+    forward_secrecy: string;
+  };
+  pii_leakage_guarantee: {
+    raw_names_leaked: number;
+    raw_accounts_leaked: number;
+    enclave_type: string;
+    verified: boolean;
+  };
+}
+
+export interface RoleDefinition {
+  title: string;
+  description: string;
+  permissions: string[];
+}
+
