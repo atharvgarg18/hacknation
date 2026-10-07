@@ -50,8 +50,11 @@ def link_alerts(alerts: pd.DataFrame, cfg) -> list[dict]:
         by_src[src_tok[i]].append(i)
         by_dst[dst_tok[i]].append(i)
 
-    # edges: A.dst == B.src, 0 < dt < max_dt, amount ratio in bounds
-    adj: dict[int, list[int]] = defaultdict(list)
+    # Flow edges: A.dst == B.src, 0 < dt < max_dt, structuring ratio in bounds
+    flow_adj: dict[int, list[int]] = defaultdict(list)
+    comp_adj: dict[int, set[int]] = defaultdict(set)
+
+    # 1. Forward hop connections (A -> B)
     for token, dst_list in by_dst.items():
         src_list = by_src.get(token, [])
         for a in dst_list:
@@ -59,10 +62,31 @@ def link_alerts(alerts: pd.DataFrame, cfg) -> list[dict]:
                 dt = ts[b] - ts[a]
                 if 0 < dt < max_dt:
                     ratio = amts[b] / max(amts[a], 1.0)
-                    if lo_ratio <= ratio <= hi_ratio:
-                        adj[a].append(b)
+                    # Support 1-to-1 hops, fan-out smurfing (ratio >= 0.04), and fan-in gathering (ratio <= 15.0)
+                    if 0.04 <= ratio <= 15.0:
+                        flow_adj[a].append(b)
+                        comp_adj[a].add(b)
+                        comp_adj[b].add(a)
 
-    # connected components
+    # 2. Co-source branches (fan-out from the same source node within time window)
+    for token, src_list in by_src.items():
+        if len(src_list) > 1:
+            for a in src_list:
+                for b in src_list:
+                    if a != b and abs(ts[b] - ts[a]) < max_dt:
+                        comp_adj[a].add(b)
+                        comp_adj[b].add(a)
+
+    # 3. Co-destination branches (fan-in into the same sink node within time window)
+    for token, dst_list in by_dst.items():
+        if len(dst_list) > 1:
+            for a in dst_list:
+                for b in dst_list:
+                    if a != b and abs(ts[b] - ts[a]) < max_dt:
+                        comp_adj[a].add(b)
+                        comp_adj[b].add(a)
+
+    # Connected components
     visited = set()
     chains = []
     for start in range(len(alerts)):
@@ -75,13 +99,9 @@ def link_alerts(alerts: pd.DataFrame, cfg) -> list[dict]:
             if n in component:
                 continue
             component.add(n)
-            for nb in adj.get(n, []):
+            for nb in comp_adj.get(n, ()):
                 if nb not in component:
                     queue.append(nb)
-            # also reverse: if n is a dst, who connects to it
-            for other, nbs in adj.items():
-                if n in nbs and other not in component:
-                    queue.append(other)
         visited.update(component)
         if len(component) >= cfg["models"]["chain_scorer"]["min_alerts_in_chain"]:
             chains.append(sorted(component))
@@ -98,7 +118,7 @@ def link_alerts(alerts: pd.DataFrame, cfg) -> list[dict]:
         chain_dst = set(dst_tok[idx])
         chain_banks = set(alerts["src_bank"].values[idx]) | set(alerts["dst_bank"].values[idx])
         # depth = longest path in DAG
-        depth = _longest_path(adj, comp)
+        depth = _longest_path(flow_adj, comp)
         # amount conservation
         inflow = sum(amts[i] for i in comp if src_tok[i] not in chain_dst)
         outflow = sum(amts[i] for i in comp if dst_tok[i] not in chain_src)
@@ -106,7 +126,7 @@ def link_alerts(alerts: pd.DataFrame, cfg) -> list[dict]:
         # hop delays
         hop_delays = []
         for a in comp:
-            for b in adj.get(a, []):
+            for b in flow_adj.get(a, []):
                 if b in comp:
                     hop_delays.append(ts[b] - ts[a])
         has_cycle = len(chain_src & chain_dst) > 0
@@ -121,7 +141,7 @@ def link_alerts(alerts: pd.DataFrame, cfg) -> list[dict]:
             "time_span_s": float(chain_ts.max() - chain_ts.min()),
             "median_hop_delay_s": float(np.median(hop_delays)) if hop_delays else 0.0,
             "has_cycle": int(has_cycle),
-            "branching_factor": float(sum(len(adj.get(i, [])) for i in comp) / max(len(comp), 1)),
+            "branching_factor": float(sum(len(flow_adj.get(i, [])) for i in comp) / max(len(comp), 1)),
         }
         # rule-based score
         score = _rule_score(feats, c)

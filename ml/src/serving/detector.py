@@ -127,6 +127,8 @@ def detect_attack(attack_tx: pd.DataFrame, cfg=None, onnx_path=None) -> dict:
     for i, row in attack_tx.iterrows():
         tx_results.append({
             "tx_id": row.tx_id, "src_acct": row.src_acct, "dst_acct": row.dst_acct,
+            "src_bank": getattr(row, "src_bank", "axis"),
+            "dst_bank": getattr(row, "dst_bank", "icici"),
             "amount": float(row.amount), "score": float(scores[i]),
             "flagged": bool(flagged[i]), "blocked": bool(blocked[i]),
             "band": "block" if blocked[i] else ("hold" if flagged[i] else "pass"),

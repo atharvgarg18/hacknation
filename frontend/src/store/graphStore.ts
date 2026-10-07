@@ -210,6 +210,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   },
 
   triggerAttack: async () => {
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     const state = get();
     try {
       const res = await fetch('http://localhost:8001/api/attack/simulate', {
@@ -222,25 +223,68 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
           banks: state.simulationConfig.attackBanks,
         }),
       });
+
       if (res.ok) {
         const data = await res.json();
         if (data.success && data.alert) {
-          // Merge newly attacked nodes and links
-          const existingNodeIds = new Set(state.graphData.nodes.map((n) => n.id));
-          const newNodes = data.graphData.nodes.filter(
-            (n: GraphNode) => !existingNodeIds.has(n.id)
-          );
-          const allNodes = [...state.graphData.nodes, ...newNodes];
-          const allLinks = [...state.graphData.links, ...data.graphData.links];
+          const baseNodes = [...get().graphData.nodes];
+          const baseLinks = [...get().graphData.links];
+          const incomingNodes = (data.graphData.nodes || []) as GraphNode[];
+          const incomingLinks = (data.graphData.links || []) as GraphEdge[];
 
+          // Progressively animate each hop sequentially (~380ms delay)
+          const addedNodeIds = new Set<string>();
+          const currentNodes = [...baseNodes];
+          const currentLinks = [...baseLinks];
+          const chainNodeIds: string[] = [];
+          const chainEdgeIds: string[] = [];
+
+          for (let i = 0; i < incomingLinks.length; i++) {
+            const link = incomingLinks[i];
+            chainEdgeIds.push(link.id);
+
+            // Add source node if not added yet
+            const srcNode = incomingNodes.find((n) => n.id === link.source);
+            if (srcNode && !addedNodeIds.has(srcNode.id)) {
+              addedNodeIds.add(srcNode.id);
+              chainNodeIds.push(srcNode.id);
+              currentNodes.push(srcNode);
+            }
+
+            // Add target node if not added yet
+            const tgtNode = incomingNodes.find((n) => n.id === link.target);
+            if (tgtNode && !addedNodeIds.has(tgtNode.id)) {
+              addedNodeIds.add(tgtNode.id);
+              chainNodeIds.push(tgtNode.id);
+              currentNodes.push(tgtNode);
+            }
+
+            currentLinks.push(link);
+
+            // Update live graph and focus on the progressively forming chain
+            set({
+              graphData: { nodes: [...currentNodes], links: [...currentLinks] },
+              focusedChain: {
+                chainId: data.alert.chainId,
+                nodeIds: [...chainNodeIds],
+                edgeIds: [...chainEdgeIds],
+              },
+            });
+
+            await sleep(380);
+          }
+
+          // Complete the chain, append alert, and fire detection celebration
           set({
-            graphData: { nodes: allNodes, links: allLinks },
-            alerts: [data.alert, ...state.alerts],
+            alerts: [data.alert, ...get().alerts],
+            selectedAlertId: data.alert.id,
+            focusedChain: {
+              chainId: data.alert.chainId,
+              nodeIds: data.alert.chainNodeIds,
+              edgeIds: data.alert.chainEdgeIds,
+            },
           });
-
-          // Focus on the new chain and trigger detection animation
-          state.selectAlert(data.alert.id);
-          state.triggerDetection(data.alert.chainId, data.detectionTimeMs || 42);
+          get().triggerDetection(data.alert.chainId, data.detectionTimeMs || 143);
           return;
         }
       }
@@ -251,6 +295,18 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     // Fallback if backend is not reachable
     const criticalAlert = state.alerts.find((a) => a.severity === 'critical');
     if (criticalAlert) {
+      const edges = criticalAlert.chainEdgeIds || [];
+      const nodes = criticalAlert.chainNodeIds || [];
+      for (let i = 1; i <= edges.length; i++) {
+        set({
+          focusedChain: {
+            chainId: criticalAlert.chainId,
+            nodeIds: nodes.slice(0, Math.min(nodes.length, i + 1)),
+            edgeIds: edges.slice(0, i),
+          },
+        });
+        await sleep(350);
+      }
       state.selectAlert(criticalAlert.id);
       state.triggerDetection(criticalAlert.chainId, 4200);
     }

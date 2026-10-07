@@ -124,8 +124,11 @@ export default function NetworkGraph() {
       if (!cNodes.length) return;
       let cx = 0, cy = 0, cz = 0, cnt = 0;
       cNodes.forEach(n => {
-        if (n.x != null && n.y != null && n.z != null) {
-          cx += n.x; cy += n.y; cz += n.z; cnt++;
+        const x = n.x ?? n.fx;
+        const y = n.y ?? n.fy;
+        const z = n.z ?? n.fz;
+        if (x != null && y != null && z != null) {
+          cx += x; cy += y; cz += z; cnt++;
         }
       });
       if (cnt > 0) {

@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 import sys
 import time
+from collections import defaultdict
 from pathlib import Path
 from typing import List, Optional
 
@@ -229,32 +230,45 @@ def simulate_attack(req: AttackSimulationRequest):
     node_map = {}
     edges = []
     chain_id = f"chain_{int(time.time() * 1000)}"
+    bank_short = {"axis": "AX", "icici": "IC", "hdfc": "HD", "sbi": "SB"}
+
+    # Track topological depth for structured 3D positioning
+    node_depth = {}
+    for tx in detection_res["transactions"]:
+        s = tx["src_acct"]
+        d = tx["dst_acct"]
+        if s not in node_depth:
+            node_depth[s] = 0
+        node_depth[d] = max(node_depth.get(d, 0), node_depth[s] + 1)
+    max_depth = max(node_depth.values()) if node_depth else 1
 
     for tx in detection_res["transactions"]:
         src = tx["src_acct"]
         dst = tx["dst_acct"]
         amt = tx["amount"]
 
-        # Determine bank from account ID or default
-        src_bank = "axis" if "axis" in src else ("icici" if "icici" in src else "hdfc")
-        dst_bank = "icici" if "icici" in dst else ("hdfc" if "hdfc" in dst else "axis")
+        raw_s_bank = tx.get("src_bank") or ("axis" if "axis" in src else ("icici" if "icici" in src else ("sbi" if "sbi" in src else "hdfc")))
+        raw_d_bank = tx.get("dst_bank") or ("axis" if "axis" in dst else ("icici" if "icici" in dst else ("sbi" if "sbi" in dst else "hdfc")))
+        src_bank = raw_s_bank if raw_s_bank in bank_short else "axis"
+        dst_bank = raw_d_bank if raw_d_bank in bank_short else "icici"
 
         # Cryptographic salted HMAC-SHA256 tokenization (4-hour forward secrecy)
-        src_tok = f"{src_bank[:2].upper()}-{global_privacy_enclave.salt_manager.tokenize_account(src, src_bank)}"
-        dst_tok = f"{dst_bank[:2].upper()}-{global_privacy_enclave.salt_manager.tokenize_account(dst, dst_bank)}"
+        src_tok = f"{bank_short[src_bank]}-{global_privacy_enclave.salt_manager.tokenize_account(src, src_bank)}"
+        dst_tok = f"{bank_short[dst_bank]}-{global_privacy_enclave.salt_manager.tokenize_account(dst, dst_bank)}"
 
         # Map nodes
         if src_tok not in node_map:
             node_map[src_tok] = {
                 "id": src_tok,
                 "bank": src_bank,
-                "label": src_tok,
+                "label": bank_short[src_bank],
                 "totalIn": 0,
                 "totalOut": amt,
                 "txCount": 1,
                 "riskScore": int(tx["score"] * 100),
                 "isFlagged": tx["flagged"],
                 "chainId": chain_id,
+                "_raw_acct": src,
             }
         else:
             node_map[src_tok]["totalOut"] += amt
@@ -267,13 +281,14 @@ def simulate_attack(req: AttackSimulationRequest):
             node_map[dst_tok] = {
                 "id": dst_tok,
                 "bank": dst_bank,
-                "label": f"{dst_bank.upper()}-{dst_tok[:4]}",
+                "label": bank_short[dst_bank],
                 "totalIn": amt,
                 "totalOut": 0,
                 "txCount": 1,
                 "riskScore": int(tx["score"] * 100),
                 "isFlagged": tx["flagged"],
                 "chainId": chain_id,
+                "_raw_acct": dst,
             }
         else:
             node_map[dst_tok]["totalIn"] += amt
@@ -303,7 +318,21 @@ def simulate_attack(req: AttackSimulationRequest):
             "chainId": chain_id,
         })
 
+    # Assign structured 3D coordinates so chain forms an organized flow across the canvas
     nodes = list(node_map.values())
+    depth_groups = defaultdict(list)
+    for n in nodes:
+        raw_id = n.pop("_raw_acct", "")
+        dep = node_depth.get(raw_id, 0)
+        depth_groups[dep].append(n)
+
+    for dep, group in depth_groups.items():
+        cnt = len(group)
+        for idx, n in enumerate(group):
+            n["fx"] = round(-70 + (dep / max(max_depth, 1)) * 140, 1)
+            n["fy"] = round((idx - (cnt - 1) / 2) * 28, 1)
+            n["fz"] = round(((idx % 2) * 2 - 1) * 12, 1)
+
     chain_node_ids = [n["id"] for n in nodes]
     chain_edge_ids = [e["id"] for e in edges]
 
