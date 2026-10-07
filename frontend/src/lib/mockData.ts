@@ -32,7 +32,7 @@ function generateToken(): string {
 }
 
 function randomBank(): BankId {
-  const banks: BankId[] = ['axis', 'icici', 'hdfc'];
+  const banks: BankId[] = ['axis', 'icici', 'hdfc', 'sbi'];
   return banks[Math.floor(Math.random() * banks.length)];
 }
 
@@ -334,8 +334,8 @@ export function generateMockGraphData(options?: {
     // Generate primary laundering chain
     const chain1 = generateLaunderingChain({
       entryBank: 'axis',
-      spreadBanks: ['icici', 'hdfc', 'icici', 'hdfc', 'icici'],
-      mergeBank: 'hdfc',
+      spreadBanks: ['icici', 'hdfc', 'sbi', 'icici', 'hdfc'],
+      mergeBank: 'sbi',
       cashOutBank: 'axis',
       spreadCount: 5,
       amountBand: '1L-5L',
@@ -376,7 +376,7 @@ export function generateMockGraphData(options?: {
   }
 
   // Generate bank stats
-  const bankStats: BankStats[] = (['axis', 'icici', 'hdfc'] as BankId[]).map((bank) => {
+  const bankStats: BankStats[] = (['axis', 'icici', 'hdfc', 'sbi'] as BankId[]).map((bank) => {
     const bankNodes = allNodes.filter((n) => n.bank === bank);
     const bankEdges = allEdges.filter((e) => e.sourceBank === bank);
     return {

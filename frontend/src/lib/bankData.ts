@@ -44,6 +44,7 @@ const BANK_PREFIXES: Record<BankId, string> = {
   axis: '9180',
   icici: '0040',
   hdfc: '5020',
+  sbi: '3256',
 };
 
 function generateAccountNumber(bank: BankId): string {
@@ -200,7 +201,7 @@ export function generateBankTransactions(bank: BankId, count: number = 25): Tran
     const receiverName = randomName();
     const senderAccount = generateAccountNumber(bank);
     // 70% same bank, 30% other bank
-    const otherBanks: BankId[] = (['axis', 'icici', 'hdfc'] as BankId[]).filter(b => b !== bank);
+    const otherBanks: BankId[] = (['axis', 'icici', 'hdfc', 'sbi'] as BankId[]).filter(b => b !== bank);
     const receiverBank = Math.random() > 0.3 ? bank : otherBanks[Math.floor(Math.random() * otherBanks.length)];
     const receiverAccount = generateAccountNumber(receiverBank);
 

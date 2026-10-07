@@ -51,7 +51,7 @@ function BankLoginScreen({ onSelect }: { onSelect: (bank: BankId) => void }) {
         </div>
 
         <div className="bank-login__cards">
-          {(['axis', 'icici', 'hdfc'] as BankId[]).map((bankId) => {
+          {(Object.keys(BANK_CONFIGS) as BankId[]).map((bankId) => {
             const config = BANK_CONFIGS[bankId];
             return (
               <button

@@ -16,6 +16,7 @@
     "react-dom": "19.2.8",
     "react-force-graph-2d": "^1.29.2",
     "react-force-graph-3d": "^1.29.2",
+    "recharts": "^3.10.1",
     "three": "^0.186.1",
     "three-spritetext": "^1.10.0",
     "zustand": "^5.0.15"

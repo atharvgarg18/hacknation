@@ -7,7 +7,7 @@
 // Bank Identity
 // ============================================
 
-export type BankId = 'axis' | 'icici' | 'hdfc';
+export type BankId = 'axis' | 'icici' | 'hdfc' | 'sbi';
 
 export interface BankConfig {
   id: BankId;
@@ -50,9 +50,20 @@ export const BANK_CONFIGS: Record<BankId, BankConfig> = {
     shortName: 'HD',
     color: {
       primary: '#004c8f',
-      secondary: '#ed1c24',
+      secondary: '#0284c7',
       accent: '#0066cc',
-      gradient: ['#004c8f', '#ed1c24'],
+      gradient: ['#004c8f', '#0284c7'],
+    },
+  },
+  sbi: {
+    id: 'sbi',
+    name: 'State Bank of India',
+    shortName: 'SB',
+    color: {
+      primary: '#1a237e',
+      secondary: '#3949ab',
+      accent: '#5c6bc0',
+      gradient: ['#1a237e', '#3949ab'],
     },
   },
 };

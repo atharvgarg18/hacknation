@@ -46,6 +46,11 @@
   --hdfc-bg: rgba(2, 132, 199, 0.07);
   --hdfc-border: rgba(2, 132, 199, 0.3);
 
+  --sbi: #3949ab;
+  --sbi-glow: rgba(57, 73, 171, 0.28);
+  --sbi-bg: rgba(57, 73, 171, 0.07);
+  --sbi-border: rgba(57, 73, 171, 0.3);
+
   /* Deep-Tech Telemetry Accents */
   --emerald: #10b981;
   --emerald-glow: rgba(16, 185, 129, 0.3);
@@ -111,7 +116,7 @@ body {
   font-family: var(--font-sans);
   background: var(--bg-void);
   color: var(--text-primary);
-  overflow: hidden;
+  /* overflow is managed per-page; dashboard sets it via .dashboard-grid */
   position: relative;
 }
 
@@ -157,6 +162,7 @@ body::before {
   background: transparent;
   position: relative;
   z-index: 1;
+  overflow: hidden;
 }
 
 /* ==========================================================================
@@ -1221,6 +1227,13 @@ body::before {
   transform: translateY(-4px);
 }
 
+.bank-login__card--sbi::before { background: linear-gradient(90deg, var(--sbi), transparent); }
+.bank-login__card--sbi:hover {
+  border-color: var(--sbi-border);
+  box-shadow: 0 0 36px var(--sbi-glow), var(--shadow-specular);
+  transform: translateY(-4px);
+}
+
 .bank-login__card-icon {
   width: 58px;
   height: 58px;
@@ -1239,6 +1252,7 @@ body::before {
 .bank-login__card--axis .bank-login__card-icon { background: linear-gradient(135deg, #97144d, #c91e5e); }
 .bank-login__card--icici .bank-login__card-icon { background: linear-gradient(135deg, #e05500, #f37021); }
 .bank-login__card--hdfc .bank-login__card-icon { background: linear-gradient(135deg, #004c8f, #0284c7); }
+.bank-login__card--sbi .bank-login__card-icon { background: linear-gradient(135deg, #1a237e, #3949ab); }
 
 .bank-login__card-name {
   font-size: 16px;

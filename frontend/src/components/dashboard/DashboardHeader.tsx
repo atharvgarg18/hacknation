@@ -66,7 +66,7 @@ export default function DashboardHeader() {
         <div className="header-telemetry">
           <div className="header-telemetry__item header-telemetry__item--active">
             <span className="header-telemetry__dot" />
-            <span>OPERATIONAL // 3/3 NODES</span>
+            <span>OPERATIONAL // 4/4 NODES</span>
           </div>
 
           <div className="header-telemetry__item" style={{ display: 'none' /* on mobile */ }}>
@@ -110,6 +110,26 @@ export default function DashboardHeader() {
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
           Alert Investigation
+        </Link>
+
+        <Link
+          href="/network-effect"
+          className={`nav-segment ${pathname.startsWith('/network-effect') ? 'nav-segment--active' : ''}`}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+          </svg>
+          Network Effect
+        </Link>
+
+        <Link
+          href="/chain-story"
+          className={`nav-segment ${pathname.startsWith('/chain-story') ? 'nav-segment--active' : ''}`}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polygon points="5 3 19 12 5 21 5 3" />
+          </svg>
+          Chain Slideshow
         </Link>
       </nav>
 

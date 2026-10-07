@@ -85,7 +85,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     attackEnabled: false,
     attackPattern: 'fan-out-fan-in',
     attackHops: 5,
-    attackBanks: ['axis', 'icici', 'hdfc'],
+    attackBanks: ['axis', 'icici', 'hdfc', 'sbi'],
     attackAmount: 1500000,
     falsePositiveTest: false,
     speedMultiplier: 1,
@@ -184,7 +184,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       currentState.addTransaction(node, edge);
 
       // Update bank stats
-      const bankCounts: Record<BankId, number> = { axis: 0, icici: 0, hdfc: 0 };
+      const bankCounts: Record<BankId, number> = { axis: 0, icici: 0, hdfc: 0, sbi: 0 };
       const allEdges = [...currentState.graphData.links, edge];
       allEdges.forEach((e) => {
         bankCounts[e.sourceBank]++;
