@@ -18,6 +18,7 @@ data:
   heldout_dir: "data/heldout"
   currency: "INR"
   normal_tx_count: 50000
+  ibm_max_rows: 1000000
   start_date: "2024-01-01"
   end_date: "2024-03-31"
   temporal_splits:

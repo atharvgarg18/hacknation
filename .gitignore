@@ -16,5 +16,7 @@ node_modules/
 dist/
 build/
 
-# Dataset cache / pickles
+# Dataset cache / pickles / raw data
 *.pkl
+ml/data/
+*.csv

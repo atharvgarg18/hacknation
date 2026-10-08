@@ -226,11 +226,11 @@ def phase6_chain_scorer(ds, cfg, lgb_model, feats) -> dict:
     return {"chain_report": report, "ring_report": strip_private(rr), "n_chains": len(chains)}
 
 
-def phase7_network_effect(ds, cfg) -> dict:
+def phase7_network_effect(ds, cfg, feats=None) -> dict:
     """Phase 7: Network-effect study."""
     log("Phase 7: Network-effect study...")
     from .eval.network_effect import network_effect_study
-    return network_effect_study(ds, cfg, n_seeds=3, log=log)
+    return network_effect_study(ds, cfg, n_seeds=1, feats=feats, log=log)
 
 
 def phase8_mule(ds, cfg) -> dict:
@@ -296,7 +296,7 @@ def run_pipeline(config_path=None, phases=None):
         results["chain_scorer"] = r6
 
     if 7 in phases:
-        r7 = phase7_network_effect(ds, cfg)
+        r7 = phase7_network_effect(ds, cfg, r2["feats"] if r2 else None)
         results["network_effect"] = r7
 
     if 8 in phases:

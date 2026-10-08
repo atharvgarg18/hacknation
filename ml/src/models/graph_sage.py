@@ -84,7 +84,10 @@ def train_local(model, snapshots, epochs=1, lr=5e-3, pos_weight=15.0, mu=0.0, gl
             logits = model(d.x, d.edge_index, d.edge_attr)[d.target_mask]
             loss = focal_bce(logits, y, pos_weight, gamma)
             if mu > 0 and global_params is not None:
-                prox = sum(((p - gp) ** 2).sum() for p, gp in zip(model.parameters(), global_params))
+                prox = sum(
+                    ((p - (torch.as_tensor(gp, device=p.device, dtype=p.dtype) if not isinstance(gp, torch.Tensor) else gp)) ** 2).sum()
+                    for p, gp in zip(model.parameters(), global_params)
+                )
                 loss = loss + 0.5 * mu * prox
             opt.zero_grad()
             loss.backward()

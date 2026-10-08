@@ -16,46 +16,55 @@ from ..models.graph_sage import fit, get_weights, make_model, predict_snapshots,
 from ..models.risk_scorer import latency_benchmark, onnx_predict, onnx_session, predict
 
 
-def network_effect_study(ds, cfg, n_seeds: int = 5, cross_bank_sweeps=(0.2, 0.5, 0.8),
-                         log=None) -> dict:
+def network_effect_study(ds, cfg, n_seeds: int = 1, cross_bank_sweeps=(0.2, 0.5, 0.8),
+                         feats=None, log=None) -> dict:
     """For n in {1,2,3} banks: (A) local-only, (B) federated, (C) federated + coordinator.
     Report mean + 5th/95th CI over seeds. Also sweep cross_bank share."""
+    from ..data.splits import observed_labels, owner_bank
+    from ..models.risk_scorer import train_risk_scorer
+
     banks = bank_ids(cfg)
     results = {"by_n_banks": {}, "by_xbank_share": {}, "config": {"n_seeds": n_seeds, "banks": banks}}
 
-    # Fixed test rings
-    test_rings = {k: v for k, v in ds.rings.items() if v["split"] == "test"}
+    tx = ds.tx
+    te = tx.split == "test"
+    tr = tx.split == "train"
+    va = tx.split == "val"
+    ytr = observed_labels(tx[tr], ds.boundaries.train_end)
+    yva = observed_labels(tx[va], ds.boundaries.val_end)
+
+    if feats is None:
+        if log:
+            log("  computing bank features once for network effect study...")
+        feats = compute_bank_features(tx, banks, ds.accounts)
+
+    X_all = feats[FEATURES].values
 
     for n in range(1, len(banks) + 1):
         subset = banks[:n]
         seed_results = []
+        own = owner_bank(tx, subset)
+        vis = np.isin(own, subset)
+        vis_te = vis & te.values
+        if vis_te.sum() == 0 or vis[tr.values].sum() == 0:
+            continue
+
+        X_tr = X_all[tr.values & vis]
+        y_tr = ytr[vis[tr.values]]
+        X_va = X_all[va.values & vis]
+        y_va = yva[vis[va.values]]
+        X_te = X_all[vis_te]
+        y_te = tx[vis_te].label.values
+
         for s in range(n_seeds):
-            # Simplified: just report local LightGBM baseline per bank subset
-            from ..data.splits import owner_bank
-            tx = ds.tx.copy()
-            feats = compute_bank_features(tx, subset, ds.accounts)
-            te = tx.split == "test"
-            tr = tx.split == "train"
-            va = tx.split == "val"
-            from ..data.splits import observed_labels
-            ytr = observed_labels(tx[tr], ds.boundaries.train_end)
-            yva = observed_labels(tx[va], ds.boundaries.val_end)
-            own = owner_bank(tx, subset)
-            vis = np.isin(own, subset)
-            vis_te = vis & te.values
-            if vis_te.sum() == 0 or vis[tr.values].sum() == 0:
-                continue
-            from ..models.risk_scorer import train_risk_scorer
-            m = train_risk_scorer(feats[FEATURES].values[tr.values & vis],
-                                  ytr[vis[tr.values]], feats[FEATURES].values[va.values & vis],
-                                  yva[vis[va.values]], cfg, seed=42 + s)
-            p = predict(m, feats[FEATURES].values[vis_te])
-            y = tx[vis_te].label.values
-            met = edge_metrics(y, p)
+            m = train_risk_scorer(X_tr, y_tr, X_va, y_va, cfg, seed=42 + s)
+            p = predict(m, X_te)
+            met = edge_metrics(y_te, p)
             seed_results.append(met["pr_auc"])
+
         if seed_results:
-            mean, lo, hi = bootstrap_ci(seed_results)
-            results["by_n_banks"][n] = {"mean_pr_auc": mean, "ci_5": lo, "ci_95": hi, "n_seeds": len(seed_results)}
+            mean, lo, hi = bootstrap_ci(seed_results) if len(seed_results) > 1 else (seed_results[0], seed_results[0], seed_results[0])
+            results["by_n_banks"][n] = {"mean_pr_auc": float(mean), "ci_5": float(lo), "ci_95": float(hi), "n_seeds": len(seed_results)}
         if log:
             log(f"  n_banks={n}: {results['by_n_banks'].get(n, 'no data')}")
 

@@ -55,15 +55,33 @@ def build_mule_dataset(tx: pd.DataFrame, accounts: pd.DataFrame, rings: dict,
         mule_accts.update(r.get("mules", []))
 
     young = accounts[accounts.open_ts >= tx.ts.min() - pd.Timedelta(days=max_age_days)]
+    mule_young = young[young.acct_id.isin(mule_accts)]
+    benign_young = young[~young.acct_id.isin(mule_accts)]
+    if len(benign_young) > 2000:
+        benign_young = benign_young.sample(2000, random_state=42)
+    selected_accounts = pd.concat([mule_young, benign_young], ignore_index=True)
+
+    # Pre-index transactions by source and destination for O(1) retrieval
+    tx_src = dict(tuple(tx.groupby("src_acct")))
+    tx_dst = dict(tuple(tx.groupby("dst_acct")))
+
     rows, labels, acct_ids = [], [], []
-    for _, acc in young.iterrows():
-        tx_a = tx[(tx.src_acct == acc.acct_id) | (tx.dst_acct == acc.acct_id)]
+    for _, acc in selected_accounts.iterrows():
+        aid = acc.acct_id
+        parts = []
+        if aid in tx_src:
+            parts.append(tx_src[aid])
+        if aid in tx_dst:
+            parts.append(tx_dst[aid])
+        if not parts:
+            continue
+        tx_a = pd.concat(parts).drop_duplicates(subset=["tx_id"]) if len(parts) > 1 else parts[0]
         f = mule_features(acc, tx_a)
         if f is None:
             continue
         rows.append([f[k] for k in MULE_FEATURES])
-        labels.append(1 if acc.acct_id in mule_accts else 0)
-        acct_ids.append(acc.acct_id)
+        labels.append(1 if aid in mule_accts else 0)
+        acct_ids.append(aid)
     return np.array(rows, dtype=np.float32), np.array(labels), acct_ids
 
 

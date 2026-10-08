@@ -98,11 +98,23 @@ def build_dataset(cfg, seed: int | None = None, use_ibm: bool | None = None) -> 
     train_end = start + span * tr["train_ratio"]
     val_end = start + span * (tr["train_ratio"] + tr["val_ratio"])
 
-    warm_pool = accounts[(accounts.kind == "normal") & (accounts.open_ts < start)][["acct_id", "bank"]]
+    warm_pool = accounts[(accounts.kind == "normal") & (accounts.open_ts <= start)][["acct_id", "bank"]]
+    if warm_pool.empty:
+        warm_pool = accounts[["acct_id", "bank"]]
     rc = cfg["rings"]
-    train_rings = inject_rings(cfg, accounts, start + pd.Timedelta(days=2), end - pd.Timedelta(days=2),
+
+    # Adapt margins to overall span (accommodates multi-month synthetic or multi-day IBM data)
+    r_margin = min(pd.Timedelta(days=2), span * 0.05)
+    r_start = start + r_margin
+    r_end = max(r_start + pd.Timedelta(minutes=30), end - r_margin)
+
+    h_span = max(end - val_end, pd.Timedelta(hours=2))
+    h_start = val_end + min(pd.Timedelta(hours=6), h_span * 0.1)
+    h_end = max(h_start + pd.Timedelta(minutes=30), end - min(pd.Timedelta(days=1), h_span * 0.1))
+
+    train_rings = inject_rings(cfg, accounts, r_start, r_end,
                                rc["train_families"], rc["train_rings_count"], seed * 1000 + 1, rng, warm_pool)
-    held = inject_rings(cfg, accounts, val_end + pd.Timedelta(hours=6), end - pd.Timedelta(days=1),
+    held = inject_rings(cfg, accounts, h_start, h_end,
                         [rc["heldout_family"]], rc["heldout_rings_count"], rc["heldout_seed_base"] + seed * 1000,
                         rng, warm_pool)
 

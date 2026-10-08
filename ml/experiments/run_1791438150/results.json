@@ -1,0 +1,572 @@
+{
+  "risk_scorer": {
+    "thresholds": {
+      "t_low": 0.8481012658227848,
+      "t_high": 0.8481022658227848
+    },
+    "metrics": {
+      "pr_auc": 0.9938650306748467,
+      "roc_auc": 0.5,
+      "recall@1%fpr": 0.0,
+      "recall@0.1%fpr": 0.0,
+      "n": 652,
+      "n_pos": 648,
+      "precision": 0.9938650306748467,
+      "recall": 1.0,
+      "f1": 0.9969230769230769
+    },
+    "fpr": {
+      "fpr_overall": 1.0,
+      "fpr_normal": 1.0
+    },
+    "ring_report": {
+      "n_rings": 37,
+      "ring_recall": 1.0,
+      "ring_recall_edge_only": 1.0,
+      "chain_completeness_mean": 0.0,
+      "funds_intercepted_frac": 1.0,
+      "median_ttd_s": 0.0,
+      "cross_bank_share": 1.0,
+      "by_family": {
+        "cycle": 1.0,
+        "fanout_chain": 1.0,
+        "layered": 1.0,
+        "scatter_gather": 1.0
+      },
+      "heldout_recall": 1.0
+    },
+    "parity": {
+      "max_abs_diff": 1.0000000036274914e-15,
+      "ok": true,
+      "n": 652
+    },
+    "latency": {
+      "single_p50_ms": 0.017300000763498247,
+      "single_p95_ms": 0.01999999221879989,
+      "single_p99_ms": 0.02400099358055743,
+      "single_throughput_tps": 56298.95198563603,
+      "batch_size": 256,
+      "batch_p50_ms": 0.24385000142501667,
+      "batch_throughput_tps": 884055.7430185096,
+      "threads": 1
+    },
+    "reliability": {
+      "ece": 0.14576376485206188,
+      "bins": [
+        {
+          "bin": 8,
+          "conf": 0.8481012658227848,
+          "acc": 0.9938650306748467,
+          "n": 652
+        }
+      ]
+    }
+  },
+  "gnn": {
+    "combined": {
+      "pr_auc": 0.9752715992260269,
+      "roc_auc": 0.0926791277258567,
+      "recall@1%fpr": 0.001557632398753894,
+      "recall@0.1%fpr": 0.001557632398753894,
+      "n": 646,
+      "n_pos": 642
+    }
+  },
+  "federation": {
+    "history": [
+      {
+        "round": 0,
+        "agg_method": "trimmed_mean",
+        "dp": true,
+        "secagg": true,
+        "secagg_note": "secagg_residual=1.60e+03",
+        "mean_pr_auc": 0.8355335791087511,
+        "per_bank": {
+          "axis": {
+            "pr_auc": 0.7875895424095295,
+            "bank": "axis"
+          },
+          "icici": {
+            "pr_auc": 0.8370722118569862,
+            "bank": "icici"
+          },
+          "hdfc": {
+            "pr_auc": 0.8819389830597378,
+            "bank": "hdfc"
+          }
+        },
+        "client_losses": {
+          "axis": 0.15447816240550194,
+          "icici": 0.13775521951067607,
+          "hdfc": 0.13133251916044555
+        }
+      },
+      {
+        "round": 1,
+        "agg_method": "trimmed_mean",
+        "dp": true,
+        "secagg": true,
+        "secagg_note": "secagg_residual=1.60e+03",
+        "mean_pr_auc": 0.8734962941371821,
+        "per_bank": {
+          "axis": {
+            "pr_auc": 0.7934769214522982,
+            "bank": "axis"
+          },
+          "icici": {
+            "pr_auc": 0.9553853987552657,
+            "bank": "icici"
+          },
+          "hdfc": {
+            "pr_auc": 0.8716265622039823,
+            "bank": "hdfc"
+          }
+        },
+        "client_losses": {
+          "axis": 0.04176873321850167,
+          "icici": 0.03742301617753356,
+          "hdfc": 0.04626226396336605
+        }
+      },
+      {
+        "round": 2,
+        "agg_method": "trimmed_mean",
+        "dp": true,
+        "secagg": true,
+        "secagg_note": "secagg_residual=1.60e+03",
+        "mean_pr_auc": 0.8041834308382217,
+        "per_bank": {
+          "axis": {
+            "pr_auc": 0.9194171775167526,
+            "bank": "axis"
+          },
+          "icici": {
+            "pr_auc": 0.7356104068756877,
+            "bank": "icici"
+          },
+          "hdfc": {
+            "pr_auc": 0.7575227081222251,
+            "bank": "hdfc"
+          }
+        },
+        "client_losses": {
+          "axis": 0.01623612914538145,
+          "icici": 0.01639921965748429,
+          "hdfc": 0.011680434695945706
+        }
+      },
+      {
+        "round": 3,
+        "agg_method": "trimmed_mean",
+        "dp": true,
+        "secagg": true,
+        "secagg_note": "secagg_residual=1.60e+03",
+        "mean_pr_auc": 0.8893957319501881,
+        "per_bank": {
+          "axis": {
+            "pr_auc": 0.8758369599253616,
+            "bank": "axis"
+          },
+          "icici": {
+            "pr_auc": 0.8815557312091071,
+            "bank": "icici"
+          },
+          "hdfc": {
+            "pr_auc": 0.9107945047160957,
+            "bank": "hdfc"
+          }
+        },
+        "client_losses": {
+          "axis": 0.010826186771399902,
+          "icici": 0.014314121913589465,
+          "hdfc": 0.010160436417382233
+        }
+      },
+      {
+        "round": 4,
+        "agg_method": "trimmed_mean",
+        "dp": true,
+        "secagg": true,
+        "secagg_note": "secagg_residual=1.60e+03",
+        "mean_pr_auc": 0.8137765108435717,
+        "per_bank": {
+          "axis": {
+            "pr_auc": 0.7921742397670786,
+            "bank": "axis"
+          },
+          "icici": {
+            "pr_auc": 0.8615340420451867,
+            "bank": "icici"
+          },
+          "hdfc": {
+            "pr_auc": 0.7876212507184501,
+            "bank": "hdfc"
+          }
+        },
+        "client_losses": {
+          "axis": 0.009480453576602186,
+          "icici": 0.01060759236980944,
+          "hdfc": 0.00991088666187821
+        }
+      },
+      {
+        "round": 5,
+        "agg_method": "trimmed_mean",
+        "dp": true,
+        "secagg": true,
+        "secagg_note": "secagg_residual=1.61e+03",
+        "mean_pr_auc": 0.9115825329758991,
+        "per_bank": {
+          "axis": {
+            "pr_auc": 0.8698369058350928,
+            "bank": "axis"
+          },
+          "icici": {
+            "pr_auc": 0.9361885400721254,
+            "bank": "icici"
+          },
+          "hdfc": {
+            "pr_auc": 0.9287221530204788,
+            "bank": "hdfc"
+          }
+        },
+        "client_losses": {
+          "axis": 0.007742209979912396,
+          "icici": 0.008916685643281883,
+          "hdfc": 0.00831824945126864
+        }
+      },
+      {
+        "round": 6,
+        "agg_method": "trimmed_mean",
+        "dp": true,
+        "secagg": true,
+        "secagg_note": "secagg_residual=1.60e+03",
+        "mean_pr_auc": 0.9055478590489416,
+        "per_bank": {
+          "axis": {
+            "pr_auc": 0.8282265698594893,
+            "bank": "axis"
+          },
+          "icici": {
+            "pr_auc": 0.9384208165892238,
+            "bank": "icici"
+          },
+          "hdfc": {
+            "pr_auc": 0.9499961906981118,
+            "bank": "hdfc"
+          }
+        },
+        "client_losses": {
+          "axis": 0.007582911050621297,
+          "icici": 0.00974178944465126,
+          "hdfc": 0.008366625005668869
+        }
+      },
+      {
+        "round": 7,
+        "agg_method": "trimmed_mean",
+        "dp": true,
+        "secagg": true,
+        "secagg_note": "secagg_residual=1.60e+03",
+        "mean_pr_auc": 0.8510087711810161,
+        "per_bank": {
+          "axis": {
+            "pr_auc": 0.7873376768877394,
+            "bank": "axis"
+          },
+          "icici": {
+            "pr_auc": 0.8825035441671726,
+            "bank": "icici"
+          },
+          "hdfc": {
+            "pr_auc": 0.8831850924881366,
+            "bank": "hdfc"
+          }
+        },
+        "client_losses": {
+          "axis": 0.04123261895353346,
+          "icici": 0.012429981905046406,
+          "hdfc": 0.021734778628994398
+        }
+      },
+      {
+        "round": 8,
+        "agg_method": "trimmed_mean",
+        "dp": true,
+        "secagg": true,
+        "secagg_note": "secagg_residual=1.60e+03",
+        "mean_pr_auc": 0.8295179254386014,
+        "per_bank": {
+          "axis": {
+            "pr_auc": 0.7963470353017762,
+            "bank": "axis"
+          },
+          "icici": {
+            "pr_auc": 0.8572031180848882,
+            "bank": "icici"
+          },
+          "hdfc": {
+            "pr_auc": 0.8350036229291398,
+            "bank": "hdfc"
+          }
+        },
+        "client_losses": {
+          "axis": 0.007586911437472427,
+          "icici": 0.008499948409898596,
+          "hdfc": 0.008345397143775562
+        }
+      },
+      {
+        "round": 9,
+        "agg_method": "trimmed_mean",
+        "dp": true,
+        "secagg": true,
+        "secagg_note": "secagg_residual=1.61e+03",
+        "mean_pr_auc": 0.8381743786424017,
+        "per_bank": {
+          "axis": {
+            "pr_auc": 0.8192287140833294,
+            "bank": "axis"
+          },
+          "icici": {
+            "pr_auc": 0.8275716217389961,
+            "bank": "icici"
+          },
+          "hdfc": {
+            "pr_auc": 0.8677228001048793,
+            "bank": "hdfc"
+          }
+        },
+        "client_losses": {
+          "axis": 0.034225429233000454,
+          "icici": 0.010161230025184013,
+          "hdfc": 0.012340348816370741
+        }
+      }
+    ],
+    "dp": {
+      "sigma": 0.3,
+      "clip_c": 1.0,
+      "n_clients": 3,
+      "n_rounds": 10,
+      "delta": 1e-05,
+      "epsilon_per_round": 5.3831,
+      "epsilon_total": 11746.8875,
+      "caveat": "With only 3 clients, formal guarantees are weak. Presented as mechanism + measurement."
+    }
+  },
+  "explainer": {
+    "explanations": [
+      {
+        "tx_id": "ring_scatter_gather_42003_f8d081_e0",
+        "shap": [
+          {
+            "feature": "log_amount",
+            "shap_value": 0.0,
+            "direction": "down"
+          },
+          {
+            "feature": "amt_z_src",
+            "shap_value": 0.0,
+            "direction": "down"
+          },
+          {
+            "feature": "amt_ratio_src_mean",
+            "shap_value": 0.0,
+            "direction": "down"
+          }
+        ],
+        "reasons": [
+          "Combined risk score 0/100 based on multiple indicators."
+        ],
+        "fidelity": {
+          "baseline": 1.0000000036274914e-15,
+          "perturbed": 1.0000000036274914e-15,
+          "drop": 0.0,
+          "faithful": false,
+          "zeroed_features": [
+            "log_amount",
+            "amt_z_src",
+            "amt_ratio_src_mean"
+          ]
+        }
+      },
+      {
+        "tx_id": "ring_scatter_gather_42003_f8d081_e1",
+        "shap": [
+          {
+            "feature": "log_amount",
+            "shap_value": 0.0,
+            "direction": "down"
+          },
+          {
+            "feature": "amt_z_src",
+            "shap_value": 0.0,
+            "direction": "down"
+          },
+          {
+            "feature": "amt_ratio_src_mean",
+            "shap_value": 0.0,
+            "direction": "down"
+          }
+        ],
+        "reasons": [
+          "Combined risk score 0/100 based on multiple indicators."
+        ],
+        "fidelity": {
+          "baseline": 1.0000000036274914e-15,
+          "perturbed": 1.0000000036274914e-15,
+          "drop": 0.0,
+          "faithful": false,
+          "zeroed_features": [
+            "log_amount",
+            "amt_z_src",
+            "amt_ratio_src_mean"
+          ]
+        }
+      },
+      {
+        "tx_id": "ring_scatter_gather_42003_f8d081_e2",
+        "shap": [
+          {
+            "feature": "log_amount",
+            "shap_value": 0.0,
+            "direction": "down"
+          },
+          {
+            "feature": "amt_z_src",
+            "shap_value": 0.0,
+            "direction": "down"
+          },
+          {
+            "feature": "amt_ratio_src_mean",
+            "shap_value": 0.0,
+            "direction": "down"
+          }
+        ],
+        "reasons": [
+          "Combined risk score 0/100 based on multiple indicators."
+        ],
+        "fidelity": {
+          "baseline": 1.0000000036274914e-15,
+          "perturbed": 1.0000000036274914e-15,
+          "drop": 0.0,
+          "faithful": false,
+          "zeroed_features": [
+            "log_amount",
+            "amt_z_src",
+            "amt_ratio_src_mean"
+          ]
+        }
+      },
+      {
+        "tx_id": "ring_scatter_gather_42003_f8d081_e3",
+        "shap": [
+          {
+            "feature": "log_amount",
+            "shap_value": 0.0,
+            "direction": "down"
+          },
+          {
+            "feature": "amt_z_src",
+            "shap_value": 0.0,
+            "direction": "down"
+          },
+          {
+            "feature": "amt_ratio_src_mean",
+            "shap_value": 0.0,
+            "direction": "down"
+          }
+        ],
+        "reasons": [
+          "Combined risk score 0/100 based on multiple indicators."
+        ],
+        "fidelity": {
+          "baseline": 1.0000000036274914e-15,
+          "perturbed": 1.0000000036274914e-15,
+          "drop": 0.0,
+          "faithful": false,
+          "zeroed_features": [
+            "log_amount",
+            "amt_z_src",
+            "amt_ratio_src_mean"
+          ]
+        }
+      },
+      {
+        "tx_id": "ring_scatter_gather_42003_f8d081_e4",
+        "shap": [
+          {
+            "feature": "log_amount",
+            "shap_value": 0.0,
+            "direction": "down"
+          },
+          {
+            "feature": "amt_z_src",
+            "shap_value": 0.0,
+            "direction": "down"
+          },
+          {
+            "feature": "amt_ratio_src_mean",
+            "shap_value": 0.0,
+            "direction": "down"
+          }
+        ],
+        "reasons": [
+          "Combined risk score 0/100 based on multiple indicators."
+        ],
+        "fidelity": {
+          "baseline": 1.0000000036274914e-15,
+          "perturbed": 1.0000000036274914e-15,
+          "drop": 0.0,
+          "faithful": false,
+          "zeroed_features": [
+            "log_amount",
+            "amt_z_src",
+            "amt_ratio_src_mean"
+          ]
+        }
+      }
+    ]
+  },
+  "chain_scorer": {
+    "n_chains": 0
+  },
+  "network_effect": {
+    "by_n_banks": {
+      "1": {
+        "mean_pr_auc": NaN,
+        "ci_5": NaN,
+        "ci_95": NaN,
+        "n_seeds": 1
+      },
+      "2": {
+        "mean_pr_auc": NaN,
+        "ci_5": NaN,
+        "ci_95": NaN,
+        "n_seeds": 1
+      },
+      "3": {
+        "mean_pr_auc": 0.9938650306748467,
+        "ci_5": 0.9938650306748467,
+        "ci_95": 0.9938650306748467,
+        "n_seeds": 1
+      }
+    },
+    "by_xbank_share": {},
+    "config": {
+      "n_seeds": 1,
+      "banks": [
+        "axis",
+        "icici",
+        "hdfc"
+      ]
+    }
+  },
+  "mule": {
+    "n_accounts": 2950,
+    "n_mules": 950,
+    "pr_auc": 1.0
+  }
+}
