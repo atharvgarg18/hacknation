@@ -141,6 +141,41 @@ export default function DashboardHeader() {
         </Link>
 
         <Link
+          href="/micro-smurfing"
+          className={`nav-segment ${pathname.startsWith('/micro-smurfing') ? 'nav-segment--active' : ''}`}
+          style={{
+            position: 'relative',
+            ...(pathname.startsWith('/micro-smurfing')
+              ? {
+                  boxShadow: '0 0 14px rgba(168, 85, 247, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
+                  borderColor: 'rgba(168, 85, 247, 0.6)',
+                }
+              : {}),
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M3 12h3m12 0h3M12 3v3m0 12v3M5.6 5.6l2.1 2.1m8.6 8.6l2.1 2.1M5.6 18.4l2.1-2.1m8.6-8.6l2.1-2.1" />
+          </svg>
+          <span>Micro-Smurfing Swarm</span>
+          <span
+            style={{
+              fontSize: '8px',
+              padding: '1px 5px',
+              borderRadius: '4px',
+              background: 'rgba(239, 68, 68, 0.2)',
+              color: '#f87171',
+              fontWeight: 700,
+              letterSpacing: '0.04em',
+              border: '1px solid rgba(239, 68, 68, 0.4)',
+              lineHeight: '1.2',
+            }}
+          >
+            ROUND 2
+          </span>
+        </Link>
+
+        <Link
           href="/security"
           className={`nav-segment ${pathname.startsWith('/security') ? 'nav-segment--active' : ''}`}
         >

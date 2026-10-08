@@ -60,7 +60,13 @@ interface GraphStore {
   clearDetection: () => void;
   startSimulation: () => void;
   stopSimulation: () => void;
-  triggerAttack: () => void;
+  triggerAttack: (params?: {
+    adversary_mode?: boolean;
+    mules?: number;
+    amount?: number;
+    micro_amount?: number;
+    collapsed_view?: boolean;
+  }) => Promise<void>;
   setAdversaryMode: (enabled: boolean) => void;
   clearAdversaryComparison: () => void;
 }
@@ -220,9 +226,11 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     set({ isSimulating: false, simulationInterval: null });
   },
 
-  triggerAttack: async () => {
+  triggerAttack: async (params) => {
     const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     const state = get();
+    const isAdv = params?.adversary_mode !== undefined ? params.adversary_mode : state.adversaryMode;
+
     try {
       const res = await fetch('http://localhost:8001/api/attack/simulate', {
         method: 'POST',
@@ -230,9 +238,12 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
         body: JSON.stringify({
           pattern: state.simulationConfig.attackPattern,
           hops: state.simulationConfig.attackHops,
-          amount: state.simulationConfig.attackAmount,
+          amount: params?.amount ?? state.simulationConfig.attackAmount,
           banks: state.simulationConfig.attackBanks,
-          adversary_mode: state.adversaryMode,
+          adversary_mode: isAdv,
+          mules: params?.mules ?? (isAdv ? 32 : undefined),
+          micro_amount: params?.micro_amount ?? 100,
+          collapsed_view: params?.collapsed_view ?? true,
         }),
       });
 
@@ -273,7 +284,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
           await sleep(250);
 
           // 2. PROGRESSIVELY ILLUMINATE HOPS
-          if (state.adversaryMode) {
+          if (isAdv) {
             // High-density swarm: 3 fast synchronized burst waves
             const fanoutEdges = allChainEdgeIds.filter((e) => e.includes('fanout'));
             const faninEdges = allChainEdgeIds.filter((e) => e.includes('fanin'));

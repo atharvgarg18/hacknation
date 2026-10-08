@@ -82,6 +82,8 @@ class AttackSimulationRequest(BaseModel):
     time_gap_max_s: Optional[int] = 600
     cross_bank_prob: Optional[float] = 0.85
     adversary_mode: Optional[bool] = False
+    micro_amount: Optional[float] = 100.0
+    collapsed_view: Optional[bool] = True
 
 
 class SingleTxRequest(BaseModel):
@@ -200,187 +202,230 @@ def simulate_attack(req: AttackSimulationRequest):
     # engineered to bypass static per-transaction thresholds (> ₹50k).
     # -------------------------------------------------------------
     if req.adversary_mode:
-        n_mules = 16
-        total_amount = float(req.amount or 1_500_000.0)
+        total_amount = float(req.amount or 500_000.0)
+        micro_amount = max(1.0, float(req.micro_amount or 100.0))
+        n_mules = int(req.mules) if (req.mules and req.mules >= 4) else 32
+
+        # Accurate UPI limit & account-day calculations
+        total_micro_txs = max(n_mules * 2, int(total_amount / micro_amount))
+        micro_per_mule = max(1, total_micro_txs // (n_mules * 2))
+        actual_total_micro_txs = micro_per_mule * n_mules * 2 + 2
+
+        # 20 UPI tx/account/day NPCI constraint
+        tx_per_mule = micro_per_mule * 2
+        account_days_per_mule = max(1, math.ceil(tx_per_mule / 20.0))
+        total_account_days = account_days_per_mule * n_mules
+
         chain_id = f"chain_adv_{int(time.time() * 1000)}"
         alert_id = f"alt_adv_{int(time.time())}"
 
-        # 16 mules distributed across federation banks
-        mule_banks = [
-            "icici", "hdfc", "sbi", "axis",
-            "icici", "hdfc", "sbi", "axis",
-            "icici", "hdfc", "sbi", "axis",
-            "icici", "hdfc", "sbi", "icici",
-        ]
+        bank_cycle = ["icici", "hdfc", "sbi", "axis"]
+        mule_banks = [bank_cycle[i % len(bank_cycle)] for i in range(n_mules)]
 
-        # Origin source (Axis), Collector (ICICI), Final Sink (HDFC)
+        # Origin source (Axis), 2 Collectors (ICICI & HDFC), Final Sink (SBI)
         src_raw = "acct_axis_origin_S"
         src_bank = "axis"
-        coll_raw = "acct_icici_coll_G"
-        coll_bank = "icici"
-        sink_raw = "acct_hdfc_sink_T"
-        sink_bank = "hdfc"
+        coll1_raw = "acct_icici_coll_G1"
+        coll1_bank = "icici"
+        coll2_raw = "acct_hdfc_coll_G2"
+        coll2_bank = "hdfc"
+        sink_raw = "acct_sbi_sink_T"
+        sink_bank = "sbi"
 
         src_tok = f"AX-{global_privacy_enclave.salt_manager.tokenize_account(src_raw, src_bank)}"
-        coll_tok = f"IC-{global_privacy_enclave.salt_manager.tokenize_account(coll_raw, coll_bank)}"
-        sink_tok = f"HD-{global_privacy_enclave.salt_manager.tokenize_account(sink_raw, sink_bank)}"
+        coll1_tok = f"IC-{global_privacy_enclave.salt_manager.tokenize_account(coll1_raw, coll1_bank)}"
+        coll2_tok = f"HD-{global_privacy_enclave.salt_manager.tokenize_account(coll2_raw, coll2_bank)}"
+        sink_tok = f"SB-{global_privacy_enclave.salt_manager.tokenize_account(sink_raw, sink_bank)}"
 
         node_map = {}
 
-        # Origin Node
+        # 1. Origin Node
         node_map[src_tok] = {
             "id": src_tok,
             "bank": src_bank,
-            "label": "AX-SRC",
+            "label": "AX-SRC (DISBURSER)",
             "totalIn": 0,
             "totalOut": total_amount,
-            "txCount": 608,
+            "txCount": micro_per_mule * n_mules,
             "riskScore": 99,
             "isFlagged": True,
             "chainId": chain_id,
-            "fx": -80.0,
+            "fx": -115.0,
             "fy": 0.0,
             "fz": 0.0,
         }
 
+        # 2. Radial Swarm Mules (Explosive Fan-Out)
         mule_tokens = []
         for idx in range(n_mules):
             m_bank = mule_banks[idx]
             b_prefix = bank_short.get(m_bank, "BK")
-            m_raw = f"acct_{m_bank}_{idx}_M"
+            m_raw = f"acct_{m_bank}_{idx}_MULE"
             m_tok = f"{b_prefix}-{global_privacy_enclave.salt_manager.tokenize_account(m_raw, m_bank)}"
             mule_tokens.append((m_tok, m_bank, idx))
 
             angle = (idx / float(n_mules)) * 2.0 * math.pi
-            fy = round(math.sin(angle) * 58.0, 1)
-            fz = round(math.cos(angle) * 38.0, 1)
+            radius = 48.0 + (idx % 4) * 10.0
+            fx = -22.0 + ((idx % 3) - 1.0) * 12.0
+            fy = round(math.sin(angle) * radius, 1)
+            fz = round(math.cos(angle) * (radius * 0.7), 1)
 
             m_in = round(total_amount / n_mules, 2)
-            m_fee = round(m_in * 0.032, 2)
+            m_fee = round(m_in * 0.032, 2)  # Mule retains 3.2% commission
             m_out = round(m_in - m_fee, 2)
 
             node_map[m_tok] = {
                 "id": m_tok,
                 "bank": m_bank,
-                "label": f"{b_prefix}-M{idx}",
+                "label": f"{b_prefix}-M{idx+1}",
                 "totalIn": m_in,
                 "totalOut": m_out,
-                "txCount": 76,
+                "txCount": tx_per_mule,
                 "riskScore": 98,
                 "isFlagged": True,
                 "chainId": chain_id,
-                "fx": -20.0,
+                "fx": fx,
                 "fy": fy,
                 "fz": fz,
             }
 
-        coll_in = sum(node_map[m[0]]["totalOut"] for m in mule_tokens)
-        coll_out = round(coll_in * 0.985, 2)
+        # 3. Dual Collector Nodes (Extreme Fan-In Hubs)
+        half_mules = n_mules // 2
+        coll1_in = sum(node_map[m[0]]["totalOut"] for m in mule_tokens[:half_mules])
+        coll2_in = sum(node_map[m[0]]["totalOut"] for m in mule_tokens[half_mules:])
+        coll1_out = round(coll1_in * 0.988, 2)
+        coll2_out = round(coll2_in * 0.988, 2)
 
-        # Collector Node
-        node_map[coll_tok] = {
-            "id": coll_tok,
-            "bank": coll_bank,
-            "label": "IC-COLL",
-            "totalIn": coll_in,
-            "totalOut": coll_out,
-            "txCount": 609,
+        node_map[coll1_tok] = {
+            "id": coll1_tok,
+            "bank": coll1_bank,
+            "label": "IC-HUB1 (AGGREGATOR)",
+            "totalIn": coll1_in,
+            "totalOut": coll1_out,
+            "txCount": half_mules * micro_per_mule + 1,
             "riskScore": 99,
             "isFlagged": True,
             "chainId": chain_id,
-            "fx": 40.0,
-            "fy": 0.0,
+            "fx": 52.0,
+            "fy": -26.0,
             "fz": 0.0,
         }
 
-        # Final Sink Node
-        node_map[sink_tok] = {
-            "id": sink_tok,
-            "bank": sink_bank,
-            "label": "HD-SINK",
-            "totalIn": coll_out,
-            "totalOut": 0,
-            "txCount": 1,
+        node_map[coll2_tok] = {
+            "id": coll2_tok,
+            "bank": coll2_bank,
+            "label": "HD-HUB2 (AGGREGATOR)",
+            "totalIn": coll2_in,
+            "totalOut": coll2_out,
+            "txCount": (n_mules - half_mules) * micro_per_mule + 1,
             "riskScore": 99,
             "isFlagged": True,
             "chainId": chain_id,
-            "fx": 95.0,
+            "fx": 52.0,
+            "fy": 26.0,
+            "fz": 0.0,
+        }
+
+        # 4. Final Sink Node
+        sink_in = coll1_out + coll2_out
+        node_map[sink_tok] = {
+            "id": sink_tok,
+            "bank": sink_bank,
+            "label": "SB-SINK (OFF-RAMP)",
+            "totalIn": sink_in,
+            "totalOut": 0,
+            "txCount": 2,
+            "riskScore": 99,
+            "isFlagged": True,
+            "chainId": chain_id,
+            "fx": 115.0,
             "fy": 0.0,
             "fz": 0.0,
         }
 
         nodes = list(node_map.values())
         edges = []
-        total_micro_txs = 0
         now_ts = pd.Timestamp.now().isoformat()
 
         # Stage 1: Fan-Out Edges (Source -> Mules)
         for m_tok, m_bank, idx in mule_tokens:
             edge_id = f"adv_fanout_e{idx}_{chain_id[-6:]}"
             m_amt = node_map[m_tok]["totalIn"]
-            n_micro = 38
-            total_micro_txs += n_micro
-            avg_micro = round(m_amt / n_micro, 1)
+            burst_rate = round(max(4.0, micro_per_mule / 2.5), 1)
 
             edges.append({
                 "id": edge_id,
                 "source": src_tok,
                 "target": m_tok,
-                "amountBand": f"x{n_micro} txs",
+                "amountBand": f"x{micro_per_mule} txs (₹{int(micro_amount)})",
                 "timestamp": now_ts,
                 "sourceBank": src_bank,
                 "targetBank": m_bank,
                 "isFlagged": True,
                 "chainId": chain_id,
-                "txCount": n_micro,
+                "txCount": micro_per_mule,
                 "totalAmount": m_amt,
-                "avgMicroAmount": avg_micro,
-                "flowVelocity": "12.4 tx/min",
+                "avgMicroAmount": micro_amount,
+                "flowVelocity": f"{burst_rate} tx/min",
                 "isAdversarial": True,
             })
 
-        # Stage 2: Fan-In Edges (Mules -> Collector)
+        # Stage 2: Fan-In Edges (Mules -> Hub 1 & Hub 2)
         for m_tok, m_bank, idx in mule_tokens:
+            target_hub = coll1_tok if idx < half_mules else coll2_tok
+            target_bank = coll1_bank if idx < half_mules else coll2_bank
             edge_id = f"adv_fanin_e{idx}_{chain_id[-6:]}"
             m_out = node_map[m_tok]["totalOut"]
-            n_micro = 38
-            total_micro_txs += n_micro
-            avg_micro = round(m_out / n_micro, 1)
+            burst_rate = round(max(4.5, micro_per_mule / 2.2), 1)
 
             edges.append({
                 "id": edge_id,
                 "source": m_tok,
-                "target": coll_tok,
-                "amountBand": f"x{n_micro} txs",
+                "target": target_hub,
+                "amountBand": f"x{micro_per_mule} txs (₹{int(micro_amount)})",
                 "timestamp": now_ts,
                 "sourceBank": m_bank,
-                "targetBank": coll_bank,
+                "targetBank": target_bank,
                 "isFlagged": True,
                 "chainId": chain_id,
-                "txCount": n_micro,
+                "txCount": micro_per_mule,
                 "totalAmount": m_out,
-                "avgMicroAmount": avg_micro,
-                "flowVelocity": "13.1 tx/min",
+                "avgMicroAmount": micro_amount,
+                "flowVelocity": f"{burst_rate} tx/min",
                 "isAdversarial": True,
             })
 
-        # Stage 3: Exit Edge (Collector -> Sink)
-        edge_sink_id = f"adv_sink_e0_{chain_id[-6:]}"
-        total_micro_txs += 1
+        # Stage 3: Aggregator Edges (Hub 1 -> Sink & Hub 2 -> Sink)
         edges.append({
-            "id": edge_sink_id,
-            "source": coll_tok,
+            "id": f"adv_sink_e1_{chain_id[-6:]}",
+            "source": coll1_tok,
             "target": sink_tok,
-            "amountBand": "10L+",
+            "amountBand": f"₹{coll1_out/100000:.1f}L Bulk",
             "timestamp": now_ts,
-            "sourceBank": coll_bank,
+            "sourceBank": coll1_bank,
             "targetBank": sink_bank,
             "isFlagged": True,
             "chainId": chain_id,
             "txCount": 1,
-            "totalAmount": coll_out,
-            "avgMicroAmount": coll_out,
-            "flowVelocity": "Final Exit",
+            "totalAmount": coll1_out,
+            "avgMicroAmount": coll1_out,
+            "flowVelocity": "Consolidated Exit",
+            "isAdversarial": True,
+        })
+        edges.append({
+            "id": f"adv_sink_e2_{chain_id[-6:]}",
+            "source": coll2_tok,
+            "target": sink_tok,
+            "amountBand": f"₹{coll2_out/100000:.1f}L Bulk",
+            "timestamp": now_ts,
+            "sourceBank": coll2_bank,
+            "targetBank": sink_bank,
+            "isFlagged": True,
+            "chainId": chain_id,
+            "txCount": 1,
+            "totalAmount": coll2_out,
+            "avgMicroAmount": coll2_out,
+            "flowVelocity": "Consolidated Exit",
             "isAdversarial": True,
         })
 
@@ -389,42 +434,42 @@ def simulate_attack(req: AttackSimulationRequest):
         chain_edge_ids = [e["id"] for e in edges]
 
         amt_lakh = total_amount / 100000.0
-        amt_str = f"₹{amt_lakh:.1f}L"
+        amt_str = f"₹{amt_lakh:.1f}L" if amt_lakh >= 1.0 else f"₹{int(total_amount):,}"
         banks_involved = list(set([n["bank"] for n in nodes]))
 
         comparison = {
             "is_adversarial": True,
-            "total_micro_transactions": total_micro_txs,
-            "average_micro_tx": "₹2,467",
+            "total_micro_transactions": actual_total_micro_txs,
+            "average_micro_tx": f"₹{int(micro_amount):,}",
             "mule_swarm_size": n_mules,
             "fraudster_cost": {
-                "mule_recruitment_overhead": "16 verified KYC mule accounts required",
-                "upi_limit_exhaustion": "76 transfers/mule exhausts daily 20 tx UPI limits across 4 account-days",
-                "exposure_surface": f"{total_micro_txs:,} distinct digital ledger records left on NPCI switch",
-                "victim_freeze_window": "4-day operational delay gave victims time to file Cyber Cell 1930 freeze requests",
+                "mule_recruitment_overhead": f"{n_mules} verified KYC mule accounts recruited across 4 banks",
+                "upi_limit_exhaustion": f"{tx_per_mule} txs/mule exceeds 20 UPI daily limit → requires {account_days_per_mule} days ({total_account_days} account-days)",
+                "exposure_surface": f"{actual_total_micro_txs:,} distinct digital ledger footprints left on NPCI switch",
+                "victim_freeze_window": f"{account_days_per_mule}-day operational delay gives victims time to file Cyber Cell 1930 freeze requests",
             },
             "legacy_rule": {
                 "engine_name": "Legacy Per-Transaction Rule Engine",
                 "rule": "Static Amount Threshold (> ₹50,000)",
                 "flagged_txs": 0,
-                "total_txs": total_micro_txs,
+                "total_txs": actual_total_micro_txs,
                 "detection_rate": "0.0%",
                 "chains_detected": 0,
                 "status": "EVADED",
                 "status_badge": "100% FALSE NEGATIVE",
-                "verdict": "BYPASSED — All 1,217 micro-transfers stayed under radar.",
+                "verdict": f"BYPASSED — All {actual_total_micro_txs:,} micro-transfers (₹{int(micro_amount)}) stayed under ₹50k limit.",
             },
             "satark_flow": {
                 "engine_name": "SATARK Flow & Graph Topology Engine",
                 "rule": "Weighted Edge Collapse + Pass-Through Velocity + Swarm Topology",
-                "flagged_txs": total_micro_txs,
+                "flagged_txs": actual_total_micro_txs,
                 "collapsed_edges": len(edges),
                 "detection_rate": "100.0%",
                 "chains_detected": 1,
                 "score": 99,
                 "status": "INTERCEPTED",
                 "status_badge": "100% CHAIN INTERCEPTED",
-                "verdict": "CAUGHT — Flow conservation & swarm topology exposed the entire ring.",
+                "verdict": f"CAUGHT — Flow conservation & {n_mules}-mule swarm topology intercepted the entire ring.",
             },
         }
 
