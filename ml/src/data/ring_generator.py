@@ -93,12 +93,7 @@ def _build_structure(p: RingParams, rng) -> tuple[list[list[str]], list[tuple[st
         for i in range(m):
             edges.append(("S", f"M{i}"))
             edges.append((f"M{i}", "G"))
-        prev = "G"
-        for k in range(max(0, h - 3)):
-            nm = f"C{k}"
-            edges.append((prev, nm))
-            prev = nm
-        edges.append((prev, "T"))
+        edges.append(("G", "T"))
     elif p.topology == "layered":
         L = h - 1
         sizes = np.maximum(1, rng.multinomial(max(m - L, 0), [1 / L] * L) + 1)
@@ -174,6 +169,9 @@ def generate_ring(p: RingParams, start_ts: pd.Timestamp,
         elif n == "T":
             age = int(rng.integers(30, 1000))
             kind = "ring_sink"
+        elif n == "G":
+            age = int(rng.integers(60, 500))
+            kind = "collector"
         else:
             age = int(rng.integers(p.mule_age_days[0], max(p.mule_age_days[0] + 1, p.mule_age_days[1] + 1)))
             kind = "mule"
@@ -188,28 +186,64 @@ def generate_ring(p: RingParams, start_ts: pd.Timestamp,
     amt_in["S"] = float(p.total_amount)
     rows = []
     lo, hi = float(p.time_gap_s[0]), float(max(p.time_gap_s[1], p.time_gap_s[0] + 1))
-    for n in order:
-        ds = outs.get(n, [])
-        if not ds:
-            continue
-        avail = amt_in[n] * (1.0 if n == "S" else p.pass_through_frac)
-        if p.split_ratio is not None and len(p.split_ratio) == len(ds):
-            w = np.asarray(p.split_ratio, float)
-            w = w / w.sum()
-        else:
-            w = rng.dirichlet([p.split_alpha] * len(ds))
-        for d, wi in zip(ds, w):
-            if p.topology == "layered":
-                gap = float(rng.exponential((lo + hi) / 2))
+
+    if p.topology == "scatter_gather":
+        mules = [n for n in order if n.startswith("M")]
+        m_count = len(mules)
+
+        # Stage 1: Fan-out from Starting Node S to intermediate mules below reporting thresholds
+        w = rng.dirichlet([22.0] * m_count)
+        s_amts = [round(float(p.total_amount * wi), 2) for wi in w]
+        s_amts[-1] = round(float(p.total_amount - sum(s_amts[:-1])), 2)
+
+        m_in_ts = {}
+        for i, m_node in enumerate(mules):
+            # Sequential fan-out bursts (15-30 seconds apart)
+            t_out = start_ts + pd.Timedelta(seconds=15 + i * int(rng.integers(15, 30)))
+            amt_out = s_amts[i]
+            rows.append((t_out, bank_of["S"], acct_of["S"], bank_of[m_node], acct_of[m_node], amt_out, 0))
+            amt_in[m_node] = amt_out
+
+            # Stage 2: Rapid pass-through fan-in from M_i to single Gatherer G (hold 2-10 min)
+            hold_sec = float(rng.uniform(120, 600))
+            t_in = t_out + pd.Timedelta(seconds=hold_sec)
+            m_in_ts[m_node] = t_in
+
+            # Mule pass-through (95-98%)
+            mule_cut = float(rng.uniform(0.95, 0.98))
+            amt_in_g = round(float(amt_out * mule_cut), 2)
+            rows.append((t_in, bank_of[m_node], acct_of[m_node], bank_of["G"], acct_of["G"], amt_in_g, 1))
+            amt_in["G"] += amt_in_g
+
+        # Stage 3: Convergence & Final Laundering hop from Collector G to Final Sink T
+        # Aggregated within 15 minutes, executed 2-4 minutes after last mule transfer
+        t_final = max(m_in_ts.values()) + pd.Timedelta(seconds=float(rng.uniform(120, 240)))
+        final_amt = round(float(amt_in["G"] * rng.uniform(0.97, 0.99)), 2)
+        rows.append((t_final, bank_of["G"], acct_of["G"], bank_of["T"], acct_of["T"], final_amt, 2))
+        amt_in["T"] = final_amt
+    else:
+        for n in order:
+            ds = outs.get(n, [])
+            if not ds:
+                continue
+            avail = amt_in[n] * (1.0 if n == "S" else p.pass_through_frac)
+            if p.split_ratio is not None and len(p.split_ratio) == len(ds):
+                w = np.asarray(p.split_ratio, float)
+                w = w / w.sum()
             else:
-                gap = float(rng.uniform(lo, hi))
-            t = ready[n] + pd.Timedelta(seconds=gap)
-            a = round(float(avail * wi * rng.uniform(0.985, 1.0)), 2)
-            rows.append((t, bank_of[n], acct_of[n], bank_of.get(d, bank_of.get(alias.get(d, ""), "")),
-                         acct_of[d], a, depth.get(n, 0)))
-            amt_in[d] += a
-            ready[d] = max(ready[d], t)
-            depth[d] = max(depth.get(d, 0), depth.get(n, 0) + 1)
+                w = rng.dirichlet([p.split_alpha] * len(ds))
+            for d, wi in zip(ds, w):
+                if p.topology == "layered":
+                    gap = float(rng.exponential((lo + hi) / 2))
+                else:
+                    gap = float(rng.uniform(lo, hi))
+                t = ready[n] + pd.Timedelta(seconds=gap)
+                a = round(float(avail * wi * rng.uniform(0.985, 1.0)), 2)
+                rows.append((t, bank_of[n], acct_of[n], bank_of.get(d, bank_of.get(alias.get(d, ""), "")),
+                             acct_of[d], a, depth.get(n, 0)))
+                amt_in[d] += a
+                ready[d] = max(ready[d], t)
+                depth[d] = max(depth.get(d, 0), depth.get(n, 0) + 1)
 
     tx = pd.DataFrame(rows, columns=["ts", "src_bank", "src_acct", "dst_bank", "dst_acct", "amount", "hop"])
     tx = tx.sort_values("ts").reset_index(drop=True)

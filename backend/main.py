@@ -72,14 +72,14 @@ except Exception as e:
 # ============================================
 
 class AttackSimulationRequest(BaseModel):
-    pattern: Optional[str] = "fanout_chain"  # fanout_chain, cycle, scatter_gather, layered
-    hops: Optional[int] = 4
-    mules: Optional[int] = 8
-    amount: Optional[float] = 2_500_000.0
-    banks: Optional[List[str]] = ["axis", "icici", "hdfc"]
+    pattern: Optional[str] = "fan-out-fan-in"  # fan-out-fan-in (scatter_gather), fanout_chain, cycle, layered
+    hops: Optional[int] = 3
+    mules: Optional[int] = None
+    amount: Optional[float] = 1_500_000.0
+    banks: Optional[List[str]] = ["axis", "icici", "hdfc", "sbi"]
     time_gap_min_s: Optional[int] = 60
-    time_gap_max_s: Optional[int] = 1800
-    cross_bank_prob: Optional[float] = 0.7
+    time_gap_max_s: Optional[int] = 600
+    cross_bank_prob: Optional[float] = 0.85
 
 
 class SingleTxRequest(BaseModel):
@@ -194,27 +194,40 @@ def simulate_attack(req: AttackSimulationRequest):
     # Map pattern name if frontend sends UI name
     pattern_map = {
         "fan-out-fan-in": "scatter_gather",
+        "scatter_gather": "scatter_gather",
         "chain": "fanout_chain",
+        "fanout_chain": "fanout_chain",
         "cycle": "cycle",
         "rapid-pass-through": "layered",
+        "layered": "layered",
     }
-    topology = pattern_map.get(req.pattern, req.pattern)
+    topology = pattern_map.get(req.pattern, "scatter_gather")
     if topology not in ["fanout_chain", "cycle", "scatter_gather", "layered"]:
-        topology = "fanout_chain"
+        topology = "scatter_gather"
 
-    active_banks = [b.lower() for b in (req.banks or banks) if b.lower() in ["axis", "icici", "hdfc"]]
+    default_banks = ["axis", "icici", "hdfc", "sbi"]
+    active_banks = [b.lower() for b in (req.banks or default_banks) if b.lower() in ["axis", "icici", "hdfc", "sbi"]]
     if not active_banks:
-        active_banks = ["axis", "icici", "hdfc"]
+        active_banks = default_banks
+
+    total_amount = float(req.amount or 1_500_000.0)
+
+    # Dynamic mule count derived from smurfing threshold (~₹2.5L to ₹3.5L per mule)
+    if req.mules and req.mules > 0:
+        n_mules = req.mules
+    else:
+        target_per_mule = 300_000.0
+        n_mules = max(3, min(8, int(round(total_amount / target_per_mule))))
 
     p = RingParams(
         topology=topology,
-        n_hops=req.hops or 4,
-        n_mules=req.mules or 8,
-        total_amount=req.amount or 2_500_000.0,
-        time_gap_s=(req.time_gap_min_s or 60, req.time_gap_max_s or 1800),
-        cross_bank_prob=req.cross_bank_prob or 0.7,
+        n_hops=3,
+        n_mules=n_mules,
+        total_amount=total_amount,
+        time_gap_s=(req.time_gap_min_s or 60, req.time_gap_max_s or 600),
+        cross_bank_prob=req.cross_bank_prob or 0.85,
         mule_age_days=(3, 30),
-        pass_through_frac=0.92,
+        pass_through_frac=0.95,
         seed=int(time.time()) % 100000,
         banks=tuple(active_banks),
     )
@@ -256,12 +269,26 @@ def simulate_attack(req: AttackSimulationRequest):
         src_tok = f"{bank_short[src_bank]}-{global_privacy_enclave.salt_manager.tokenize_account(src, src_bank)}"
         dst_tok = f"{bank_short[dst_bank]}-{global_privacy_enclave.salt_manager.tokenize_account(dst, dst_bank)}"
 
+        # Compute role-aware node labels
+        def get_role_label(raw_id: str, b_id: str) -> str:
+            prefix = bank_short.get(b_id, "BK")
+            if "_S" in raw_id or raw_id.endswith("_S"):
+                return f"{prefix}-SRC"
+            if "_G" in raw_id or raw_id.endswith("_G"):
+                return f"{prefix}-COLL"
+            if "_T" in raw_id or raw_id.endswith("_T"):
+                return f"{prefix}-SINK"
+            if "_M" in raw_id:
+                m_part = raw_id.split("_M")[-1]
+                return f"{prefix}-M{m_part}"
+            return prefix
+
         # Map nodes
         if src_tok not in node_map:
             node_map[src_tok] = {
                 "id": src_tok,
                 "bank": src_bank,
-                "label": bank_short[src_bank],
+                "label": get_role_label(src, src_bank),
                 "totalIn": 0,
                 "totalOut": amt,
                 "txCount": 1,
@@ -281,7 +308,7 @@ def simulate_attack(req: AttackSimulationRequest):
             node_map[dst_tok] = {
                 "id": dst_tok,
                 "bank": dst_bank,
-                "label": bank_short[dst_bank],
+                "label": get_role_label(dst, dst_bank),
                 "totalIn": amt,
                 "totalOut": 0,
                 "txCount": 1,
@@ -318,7 +345,7 @@ def simulate_attack(req: AttackSimulationRequest):
             "chainId": chain_id,
         })
 
-    # Assign structured 3D coordinates so chain forms an organized flow across the canvas
+    # Assign structured 3D coordinates so chain forms an organized fan-out / fan-in flow across canvas
     nodes = list(node_map.values())
     depth_groups = defaultdict(list)
     for n in nodes:
@@ -329,38 +356,80 @@ def simulate_attack(req: AttackSimulationRequest):
     for dep, group in depth_groups.items():
         cnt = len(group)
         for idx, n in enumerate(group):
-            n["fx"] = round(-70 + (dep / max(max_depth, 1)) * 140, 1)
-            n["fy"] = round((idx - (cnt - 1) / 2) * 28, 1)
-            n["fz"] = round(((idx % 2) * 2 - 1) * 12, 1)
+            if topology == "scatter_gather":
+                # Strict 3-stage visual alignment:
+                # S (Source, -80) -> M_i (Fan-out mules, -20) -> G (Collector, +40) -> T (Final Sink, +95)
+                if dep == 0:
+                    n["fx"] = -80.0
+                    n["fy"] = 0.0
+                    n["fz"] = 0.0
+                elif dep == 1:
+                    n["fx"] = -20.0
+                    n["fy"] = round((idx - (cnt - 1) / 2) * 26.0, 1)
+                    n["fz"] = round(((idx % 2) * 2 - 1) * 12.0, 1)
+                elif dep == 2:
+                    n["fx"] = 40.0
+                    n["fy"] = 0.0
+                    n["fz"] = 0.0
+                else:
+                    n["fx"] = 95.0
+                    n["fy"] = 0.0
+                    n["fz"] = 0.0
+            else:
+                n["fx"] = round(-70 + (dep / max(max_depth, 1)) * 140, 1)
+                if cnt == 1:
+                    n["fy"] = 0.0
+                    n["fz"] = 0.0
+                else:
+                    n["fy"] = round((idx - (cnt - 1) / 2) * 28, 1)
+                    n["fz"] = round(((idx % 2) * 2 - 1) * 12, 1)
 
     chain_node_ids = [n["id"] for n in nodes]
     chain_edge_ids = [e["id"] for e in edges]
 
     # Formatted total amount string
-    amt_lakh = (req.amount or 2500000) / 100000
+    amt_lakh = total_amount / 100000
     amt_str = f"₹{amt_lakh:.1f}L"
 
     # Build Alert object conforming to frontend Alert schema
     alert_id = f"alt_{int(time.time())}"
     banks_involved = list(set([n["bank"] for n in nodes]))
 
-    alert = {
-        "id": alert_id,
-        "chainId": chain_id,
-        "score": 98,
-        "severity": "critical",
-        "banksInvolved": banks_involved,
-        "nodeCount": len(nodes),
-        "edgeCount": len(edges),
-        "totalAmount": amt_str,
-        "duration": f"{max(2, int((req.time_gap_max_s or 1800) / 60))} minutes",
-        "detectionTime": round(duration_ms / 1000, 3),
-        "summary": (
+    if topology == "scatter_gather":
+        summary_text = (
+            f"Fan-out / Fan-in laundering ring detected across {', '.join(b.upper() for b in banks_involved)}. "
+            f"Origin account structured {amt_str} across {n_mules} mule accounts, "
+            f"converged at collector node, and laundered to final sink. 100% of illicit edges flagged."
+        )
+        breakdown_items = [
+            {
+                "factor": "Structuring below reporting threshold",
+                "points": 35,
+                "description": f"Initial sum of {amt_str} fanned out across {n_mules} mule accounts to evade single-transaction threshold reporting",
+            },
+            {
+                "factor": "Rapid mule pass-through velocity",
+                "points": 30,
+                "description": "Intermediate mules held funds for 2–10 minutes before fanning in to central collector node",
+            },
+            {
+                "factor": "Convergence & final laundering hop",
+                "points": 25,
+                "description": "Collector aggregated funds within 15 minutes and transferred 92–96% of net sum to exit sink node",
+            },
+            {
+                "factor": "Cross-bank hop coordination",
+                "points": 10,
+                "description": f"Structured hops bridging {len(banks_involved)} separate institutions ({', '.join(b.upper() for b in banks_involved)})",
+            },
+        ]
+    else:
+        summary_text = (
             f"Cross-bank laundering ring ({topology.replace('_', ' ')}) detected across "
             f"{', '.join(b.upper() for b in banks_involved)}. "
             f"100% of illicit edges flagged by ONNX edge risk model."
-        ),
-        "breakdown": [
+        )
+        breakdown_items = [
             {
                 "factor": "Rapid passthrough velocity",
                 "points": 35,
@@ -381,7 +450,21 @@ def simulate_attack(req: AttackSimulationRequest):
                 "points": 10,
                 "description": "Graph topology matches known multi-hop laundering embeddings",
             },
-        ],
+        ]
+
+    alert = {
+        "id": alert_id,
+        "chainId": chain_id,
+        "score": 98,
+        "severity": "critical",
+        "banksInvolved": banks_involved,
+        "nodeCount": len(nodes),
+        "edgeCount": len(edges),
+        "totalAmount": amt_str,
+        "duration": f"{max(2, int((req.time_gap_max_s or 600) / 60))} minutes",
+        "detectionTime": round(duration_ms / 1000, 3),
+        "summary": summary_text,
+        "breakdown": breakdown_items,
         "chainNodeIds": chain_node_ids,
         "chainEdgeIds": chain_edge_ids,
         "timestamp": pd.Timestamp.now().isoformat(),
