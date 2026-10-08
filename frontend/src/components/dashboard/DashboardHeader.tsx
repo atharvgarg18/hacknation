@@ -129,9 +129,31 @@ export default function DashboardHeader() {
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polygon points="5 3 19 12 5 21 5 3" />
           </svg>
-          Chain Slideshow
+          Chain Story
+        </Link>
+
+        <Link
+          href="/simulator"
+          className={`nav-segment ${pathname.startsWith('/simulator') ? 'nav-segment--active' : ''}`}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+          </svg>
+          Attack Simulator
+        </Link>
+
+        <Link
+          href="/model-lab"
+          className={`nav-segment ${pathname.startsWith('/model-lab') ? 'nav-segment--active' : ''}`}
+          style={pathname.startsWith('/model-lab') ? { borderColor: 'rgba(16,185,129,0.4)', background: 'rgba(16,185,129,0.08)', color: 'var(--emerald)' } : {}}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18" />
+          </svg>
+          Model Lab
         </Link>
       </nav>
+
 
       {/* Tactical Command Actions */}
       <div className="header-actions">
