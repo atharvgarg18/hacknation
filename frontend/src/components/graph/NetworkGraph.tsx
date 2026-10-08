@@ -16,6 +16,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link';
 import ForceGraph3D from './ForceGraph3DWrapper';
 import { useGraphStore } from '@/store/graphStore';
+import { BANK_CONFIGS, BankId } from '@/lib/types';
 import type { GraphNode, GraphEdge } from '@/lib/types';
 import AdversaryComparisonHUD from '@/components/dashboard/AdversaryComparisonHUD';
 
@@ -30,12 +31,14 @@ const BANK_NODE_COLORS: Record<string, number> = {
   axis: 0xc91e5e,
   icici: 0xf97316,
   hdfc: 0x0284c7,
+  sbi: 0x3949ab,
 };
 
 const BANK_GLOW: Record<string, number> = {
   axis: 0xff2d78,
   icici: 0xffaa00,
   hdfc: 0x00aaff,
+  sbi: 0x5c6bc0,
 };
 
 const FLAGGED_COLOR = 0xf43f5e;

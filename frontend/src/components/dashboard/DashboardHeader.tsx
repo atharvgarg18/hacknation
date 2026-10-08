@@ -157,7 +157,7 @@ export default function DashboardHeader() {
             <circle cx="12" cy="12" r="3" />
             <path d="M3 12h3m12 0h3M12 3v3m0 12v3M5.6 5.6l2.1 2.1m8.6 8.6l2.1 2.1M5.6 18.4l2.1-2.1m8.6-8.6l2.1-2.1" />
           </svg>
-          <span>Micro-Smurfing Swarm</span>
+          <span>Micro-Smurfing</span>
           <span
             style={{
               fontSize: '8px',
@@ -210,33 +210,37 @@ export default function DashboardHeader() {
           {isSimulating ? 'Live Traffic' : 'Resume Traffic'}
         </button>
 
-        <button
-          className={`btn ${adversaryMode ? 'btn--adversary-active' : 'btn--ghost'}`}
-          onClick={() => setAdversaryMode(!adversaryMode)}
-          title="Toggle Adversarial Micro-Smurfing Mode (1,200+ transfers to test rule evasion)"
-          style={{
-            borderColor: adversaryMode ? '#f43f5e' : undefined,
-            color: adversaryMode ? '#fff' : undefined,
-            background: adversaryMode ? 'rgba(244, 63, 94, 0.2)' : undefined,
-            boxShadow: adversaryMode ? '0 0 12px rgba(244, 63, 94, 0.35)' : undefined,
-          }}
-        >
-          <span
-            style={{
-              width: 7,
-              height: 7,
-              borderRadius: '50%',
-              background: adversaryMode ? '#f43f5e' : 'var(--text-tertiary)',
-              boxShadow: adversaryMode ? '0 0 8px #f43f5e' : 'none',
-            }}
-          />
-          {adversaryMode ? 'ADVERSARY EVASION [ON]' : 'Adversary Mode'}
-        </button>
+        {!pathname.startsWith('/micro-smurfing') && (
+          <>
+            <button
+              className={`btn ${adversaryMode ? 'btn--adversary-active' : 'btn--ghost'}`}
+              onClick={() => setAdversaryMode(!adversaryMode)}
+              title="Toggle Adversarial Micro-Smurfing Mode"
+              style={{
+                borderColor: adversaryMode ? '#f43f5e' : undefined,
+                color: adversaryMode ? '#fff' : undefined,
+                background: adversaryMode ? 'rgba(244, 63, 94, 0.2)' : undefined,
+                boxShadow: adversaryMode ? '0 0 12px rgba(244, 63, 94, 0.35)' : undefined,
+              }}
+            >
+              <span
+                style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: '50%',
+                  background: adversaryMode ? '#f43f5e' : 'var(--text-tertiary)',
+                  boxShadow: adversaryMode ? '0 0 8px #f43f5e' : 'none',
+                }}
+              />
+              {adversaryMode ? 'ADVERSARY [ON]' : 'Adversary Mode'}
+            </button>
 
-        <button className="btn btn--simulate" onClick={triggerAttack}>
-          <span style={{ fontSize: 13 }}>⚡</span>
-          SIMULATE ATTACK
-        </button>
+            <button className="btn btn--simulate" onClick={() => triggerAttack()}>
+              <span style={{ fontSize: 13 }}>⚡</span>
+              SIMULATE ATTACK
+            </button>
+          </>
+        )}
       </div>
     </header>
   );

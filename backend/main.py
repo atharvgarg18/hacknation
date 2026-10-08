@@ -250,7 +250,7 @@ def simulate_attack(req: AttackSimulationRequest):
             "riskScore": 99,
             "isFlagged": True,
             "chainId": chain_id,
-            "fx": -115.0,
+            "fx": -95.0,
             "fy": 0.0,
             "fz": 0.0,
         }
@@ -265,8 +265,8 @@ def simulate_attack(req: AttackSimulationRequest):
             mule_tokens.append((m_tok, m_bank, idx))
 
             angle = (idx / float(n_mules)) * 2.0 * math.pi
-            radius = 48.0 + (idx % 4) * 10.0
-            fx = -22.0 + ((idx % 3) - 1.0) * 12.0
+            radius = 38.0 + (idx % 4) * 8.0
+            fx = -15.0 + ((idx % 3) - 1.0) * 10.0
             fy = round(math.sin(angle) * radius, 1)
             fz = round(math.cos(angle) * (radius * 0.7), 1)
 
@@ -306,8 +306,8 @@ def simulate_attack(req: AttackSimulationRequest):
             "riskScore": 99,
             "isFlagged": True,
             "chainId": chain_id,
-            "fx": 52.0,
-            "fy": -26.0,
+            "fx": 48.0,
+            "fy": -22.0,
             "fz": 0.0,
         }
 
@@ -321,8 +321,8 @@ def simulate_attack(req: AttackSimulationRequest):
             "riskScore": 99,
             "isFlagged": True,
             "chainId": chain_id,
-            "fx": 52.0,
-            "fy": 26.0,
+            "fx": 48.0,
+            "fy": 22.0,
             "fz": 0.0,
         }
 
@@ -338,7 +338,7 @@ def simulate_attack(req: AttackSimulationRequest):
             "riskScore": 99,
             "isFlagged": True,
             "chainId": chain_id,
-            "fx": 115.0,
+            "fx": 92.0,
             "fy": 0.0,
             "fz": 0.0,
         }

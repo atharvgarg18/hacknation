@@ -298,8 +298,8 @@ body::before {
 .nav-segment {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 13px;
+  gap: 5px;
+  padding: 5px 10px;
   border-radius: var(--r-full);
   font-size: 11px;
   font-weight: 500;
@@ -307,6 +307,7 @@ body::before {
   text-decoration: none;
   transition: all var(--t-fast);
   user-select: none;
+  white-space: nowrap;
 }
 
 .nav-segment:hover {
