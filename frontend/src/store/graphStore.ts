@@ -12,6 +12,7 @@ import type {
   BankId,
   BankStats,
   SimulationConfig,
+  AdversaryComparison,
 } from '@/lib/types';
 import { generateMockGraphData, generateLiveTransaction } from '@/lib/mockData';
 
@@ -44,6 +45,8 @@ interface GraphStore {
   simulationConfig: SimulationConfig;
   isSimulating: boolean;
   simulationInterval: ReturnType<typeof setInterval> | null;
+  adversaryMode: boolean;
+  adversaryComparison: AdversaryComparison | null;
 
   // Actions
   initializeGraph: () => void;
@@ -58,6 +61,8 @@ interface GraphStore {
   startSimulation: () => void;
   stopSimulation: () => void;
   triggerAttack: () => void;
+  setAdversaryMode: (enabled: boolean) => void;
+  clearAdversaryComparison: () => void;
 }
 
 // ============================================
@@ -92,6 +97,11 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   },
   isSimulating: false,
   simulationInterval: null,
+  adversaryMode: false,
+  adversaryComparison: null,
+
+  setAdversaryMode: (enabled: boolean) => set({ adversaryMode: enabled }),
+  clearAdversaryComparison: () => set({ adversaryComparison: null }),
 
   // Actions
   initializeGraph: () => {
@@ -169,6 +179,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       detectionTimeMs: null,
       focusedChain: null,
       selectedAlertId: null,
+      adversaryComparison: null,
     });
   },
 
@@ -221,6 +232,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
           hops: state.simulationConfig.attackHops,
           amount: state.simulationConfig.attackAmount,
           banks: state.simulationConfig.attackBanks,
+          adversary_mode: state.adversaryMode,
         }),
       });
 
@@ -231,6 +243,12 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
           const currentLinks = get().graphData.links;
           const incomingNodes = (data.graphData.nodes || []) as GraphNode[];
           const incomingLinks = (data.graphData.links || []) as GraphEdge[];
+
+          if (data.comparison) {
+            set({ adversaryComparison: data.comparison });
+          } else {
+            set({ adversaryComparison: null });
+          }
 
           // 1. INJECT GRAPH DATA EXACTLY ONCE (Zero simulation resets during animation)
           const existingNodeIds = new Set(currentNodes.map((n) => n.id));
@@ -254,18 +272,56 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
           // Brief pause for camera to glide and frame the chain smoothly
           await sleep(250);
 
-          // 2. PROGRESSIVELY ILLUMINATE EACH HOP (Only updates lightweight focusedChain)
-          const activeEdges: string[] = [];
-          for (let i = 0; i < allChainEdgeIds.length; i++) {
-            activeEdges.push(allChainEdgeIds[i]);
+          // 2. PROGRESSIVELY ILLUMINATE HOPS
+          if (state.adversaryMode) {
+            // High-density swarm: 3 fast synchronized burst waves
+            const fanoutEdges = allChainEdgeIds.filter((e) => e.includes('fanout'));
+            const faninEdges = allChainEdgeIds.filter((e) => e.includes('fanin'));
+            const sinkEdges = allChainEdgeIds.filter((e) => !e.includes('fanout') && !e.includes('fanin'));
+
+            // Wave 1: Fan-out burst to all 16 mules
             set({
               focusedChain: {
                 chainId: data.alert.chainId,
                 nodeIds: allChainNodeIds,
-                edgeIds: [...activeEdges],
+                edgeIds: fanoutEdges,
               },
             });
-            await sleep(220); // Snappy, 60fps hop progression
+            await sleep(350);
+
+            // Wave 2: Fan-in burst from mules to collector
+            set({
+              focusedChain: {
+                chainId: data.alert.chainId,
+                nodeIds: allChainNodeIds,
+                edgeIds: [...fanoutEdges, ...faninEdges],
+              },
+            });
+            await sleep(350);
+
+            // Wave 3: Final exit hop to sink
+            set({
+              focusedChain: {
+                chainId: data.alert.chainId,
+                nodeIds: allChainNodeIds,
+                edgeIds: allChainEdgeIds,
+              },
+            });
+            await sleep(300);
+          } else {
+            // Standard chain: hop-by-hop progression
+            const activeEdges: string[] = [];
+            for (let i = 0; i < allChainEdgeIds.length; i++) {
+              activeEdges.push(allChainEdgeIds[i]);
+              set({
+                focusedChain: {
+                  chainId: data.alert.chainId,
+                  nodeIds: allChainNodeIds,
+                  edgeIds: [...activeEdges],
+                },
+              });
+              await sleep(220); // Snappy, 60fps hop progression
+            }
           }
 
           // 3. FINALIZE ALERT & DETECTION CELEBRATION

@@ -16,8 +16,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link';
 import ForceGraph3D from './ForceGraph3DWrapper';
 import { useGraphStore } from '@/store/graphStore';
-import { BANK_CONFIGS } from '@/lib/types';
 import type { GraphNode, GraphEdge } from '@/lib/types';
+import AdversaryComparisonHUD from '@/components/dashboard/AdversaryComparisonHUD';
 
 let THREE: typeof import('three') | null = null;
 let SpriteText: typeof import('three-spritetext').default | null = null;
@@ -416,10 +416,20 @@ export default function NetworkGraph() {
         linkWidth={linkWidth}
         linkOpacity={1.0}
         linkVisibility={linkVis}
-        linkDirectionalParticles={linkParticles}
+        linkDirectionalParticles={(l: any) => (l.isAdversarial ? 6 : linkParticles(l))}
         linkDirectionalParticleWidth={linkParticleWidth}
         linkDirectionalParticleColor={linkParticleColor}
-        linkDirectionalParticleSpeed={0.008}
+        linkDirectionalParticleSpeed={(l: any) => (l.isAdversarial ? 0.022 : 0.008)}
+        linkLabel={(l: any) => {
+          if (l.isAdversarial && l.txCount > 1) {
+            return `<div style="background:rgba(10,13,22,0.92); padding:8px 12px; border-radius:8px; border:1px solid #f43f5e; font-family:var(--font-mono); font-size:11px; color:#fff; box-shadow:0 4px 16px rgba(0,0,0,0.8)">
+              <div style="color:#f43f5e; font-weight:700">AGGREGATED FLOW STREAM</div>
+              <div style="color:#aaa; margin-top:2px">${l.txCount} Micro-Transfers (₹${Math.round(l.totalAmount || 0).toLocaleString()})</div>
+              <div style="color:#10b981; margin-top:2px">Velocity: ${l.flowVelocity || '96.8% Pass-Through'}</div>
+            </div>`;
+          }
+          return '';
+        }}
         linkDirectionalArrowLength={3.5}
         linkDirectionalArrowRelPos={0.8}
         linkDirectionalArrowColor={linkColor}
@@ -479,6 +489,9 @@ export default function NetworkGraph() {
           ⌖ Center
         </button>
       </div>
+
+      {/* Adversarial Evasion A/B Comparison HUD */}
+      <AdversaryComparisonHUD />
 
       {/* Apple Dynamic Island Style Alert Pill (Center-Top) */}
       {showDetectionAnimation && detectionTimeMs && (

@@ -12,8 +12,16 @@ import { useGraphStore } from '@/store/graphStore';
 
 export default function DashboardHeader() {
   const pathname = usePathname();
-  const { triggerAttack, isSimulating, startSimulation, stopSimulation, clearDetection, focusedChain } =
-    useGraphStore();
+  const {
+    triggerAttack,
+    isSimulating,
+    startSimulation,
+    stopSimulation,
+    clearDetection,
+    focusedChain,
+    adversaryMode,
+    setAdversaryMode,
+  } = useGraphStore();
 
   const [timeStr, setTimeStr] = useState({ utc: '', ist: '' });
 
@@ -165,6 +173,29 @@ export default function DashboardHeader() {
             }}
           />
           {isSimulating ? 'Live Traffic' : 'Resume Traffic'}
+        </button>
+
+        <button
+          className={`btn ${adversaryMode ? 'btn--adversary-active' : 'btn--ghost'}`}
+          onClick={() => setAdversaryMode(!adversaryMode)}
+          title="Toggle Adversarial Micro-Smurfing Mode (1,200+ transfers to test rule evasion)"
+          style={{
+            borderColor: adversaryMode ? '#f43f5e' : undefined,
+            color: adversaryMode ? '#fff' : undefined,
+            background: adversaryMode ? 'rgba(244, 63, 94, 0.2)' : undefined,
+            boxShadow: adversaryMode ? '0 0 12px rgba(244, 63, 94, 0.35)' : undefined,
+          }}
+        >
+          <span
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: '50%',
+              background: adversaryMode ? '#f43f5e' : 'var(--text-tertiary)',
+              boxShadow: adversaryMode ? '0 0 8px #f43f5e' : 'none',
+            }}
+          />
+          {adversaryMode ? 'ADVERSARY EVASION [ON]' : 'Adversary Mode'}
         </button>
 
         <button className="btn btn--simulate" onClick={triggerAttack}>

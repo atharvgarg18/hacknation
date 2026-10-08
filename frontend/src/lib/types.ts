@@ -138,6 +138,11 @@ export interface GraphEdge {
   isFlagged: boolean;
   chainId?: string;
   animationProgress?: number; // 0-1 for edge appearance animation
+  txCount?: number;          // number of micro-transactions collapsed into edge
+  totalAmount?: number;      // aggregated amount across collapsed transfers
+  avgMicroAmount?: number;   // average micro-transfer amount
+  flowVelocity?: string;     // e.g. "12.4 tx/min" or "96.8% pass-through"
+  isAdversarial?: boolean;   // true for micro-smurfing swarm edges
 }
 
 export interface GraphData {
@@ -208,6 +213,43 @@ export interface SimulationConfig {
   attackAmount: number;        // total amount to launder
   falsePositiveTest: boolean;  // inject busy merchant + salary patterns
   speedMultiplier: number;     // 0.5x to 5x
+  adversaryMode?: boolean;     // high-frequency micro-smurfing swarm
+}
+
+export interface AdversaryComparison {
+  is_adversarial: boolean;
+  total_micro_transactions: number;
+  average_micro_tx: string;
+  mule_swarm_size: number;
+  fraudster_cost: {
+    mule_recruitment_overhead: string;
+    upi_limit_exhaustion: string;
+    exposure_surface: string;
+    victim_freeze_window: string;
+  };
+  legacy_rule: {
+    engine_name: string;
+    rule: string;
+    flagged_txs: number;
+    total_txs: number;
+    detection_rate: string;
+    chains_detected: number;
+    status: string;
+    status_badge: string;
+    verdict: string;
+  };
+  satark_flow: {
+    engine_name: string;
+    rule: string;
+    flagged_txs: number;
+    collapsed_edges: number;
+    detection_rate: string;
+    chains_detected: number;
+    score: number;
+    status: string;
+    status_badge: string;
+    verdict: string;
+  };
 }
 
 // ============================================
